@@ -1,0 +1,23 @@
+[Unit]
+Description=Brainy backup (SQLite online backup + knowledge git bundle)
+Documentation=file:/opt/brainy/docs/disaster-recovery.md
+After=network.target
+
+[Service]
+Type=oneshot
+Environment=BRAINY_DB_PATH=/var/lib/brainy/brainy.db
+Environment=BRAINY_KNOWLEDGE_ROOT=/opt/brainy-knowledge
+Environment=BRAINY_BACKUP_ROOT=/var/backups/brainy
+WorkingDirectory=/opt/brainy
+ExecStart=/usr/bin/python3 /opt/brainy/scripts/backup.py run
+Nice=10
+IOSchedulingClass=idle
+# Least privilege: nur Backup-Ziel + DB-Verzeichnis beschreibbar (SQLite Online-Backup
+# braucht WAL/-shm-Zugriff im DB-Dir), Repo/Secrets read-only, kein Netzwerk noetig.
+ProtectSystem=strict
+ReadWritePaths=/var/backups/brainy /var/lib/brainy
+ReadOnlyPaths=/opt/brainy-knowledge /etc/brainy
+PrivateTmp=true
+ProtectHome=true
+NoNewPrivileges=true
+PrivateNetwork=true

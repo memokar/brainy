@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Brainy backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=brainy-backup.service
+
+[Install]
+WantedBy=timers.target

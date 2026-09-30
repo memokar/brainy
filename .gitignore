@@ -1,0 +1,30 @@
+# --- Secrets / Config ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.token
+secrets/
+
+# --- Laufzeit-DB + SQLite-Nebendateien (NIE committen) ---
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/
+var/
+/var/lib/brainy/
+
+# --- Backups / Temporaeres ---
+*.bak
+*.bak*
+*.tmp
+backups/
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

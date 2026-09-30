@@ -1,0 +1,26 @@
+[Unit]
+Description=Brainy MCP service (localhost-only, Phase D)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/brainy
+# Runtime-Konfiguration (keine Secrets). localhost-only.
+Environment=BRAINY_DB_PATH=/var/lib/brainy/brainy.db
+Environment=BRAINY_KNOWLEDGE_ROOT=/opt/brainy-knowledge
+Environment=BRAINY_BIND_HOST=127.0.0.1
+Environment=BRAINY_BIND_PORT=8765
+Environment=BRAINY_RATE_LIMIT=240/60
+ExecStart=/usr/bin/python3 /opt/brainy/scripts/serve.py
+Restart=on-failure
+RestartSec=5
+# Haertung (laeuft als root wie die uebrigen /opt-Dienste, da Git-Writes an das
+# root-eigene /opt/brainy-knowledge noetig sind; Schreibpfade eng begrenzt).
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/brainy /opt/brainy-knowledge
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

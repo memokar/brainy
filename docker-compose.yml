@@ -1,0 +1,15 @@
+services:
+  brainy:
+    build: .
+    image: brainy:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"   # localhost only; publish via a TLS reverse proxy
+    environment:
+      BRAINY_PUBLIC_BASE_URL: ${BRAINY_PUBLIC_BASE_URL:-https://brainy.example.com}
+      BRAINY_TELEGRAM_APPROVER_PRINCIPAL: admin
+    volumes:
+      - brainy-data:/data
+
+volumes:
+  brainy-data:
