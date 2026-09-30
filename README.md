@@ -1,5 +1,9 @@
 # Brainy
 
+[![CI](https://github.com/memokar/brainy/actions/workflows/ci.yml/badge.svg)](https://github.com/memokar/brainy/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
+
 **A shared brain for your AI agents — and for the humans who work with them.**
 
 Brainy is a self-hosted knowledge and task backbone that Claude, ChatGPT and any other
