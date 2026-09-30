@@ -103,6 +103,8 @@ Brainy runs in production for its author. Current limitations:
 
 ## License
 
+Copyright (C) 2026 Mehmet Karakolcu
+
 Brainy is dual-licensed:
 
 - **Open source:** [GNU AGPL-3.0](LICENSE). Free for everyone, including companies — but if you

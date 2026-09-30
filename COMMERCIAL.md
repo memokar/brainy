@@ -21,6 +21,6 @@ of network-facing deployments) and can include support and priority fixes.
 
 ## Contact
 
-For pricing and terms please contact: **<CONTACT_EMAIL>**
+For pricing and terms please contact: **mehmet@karakolcu.de**
 
 *This page is a summary for orientation only and not legal advice. The license texts are binding.*

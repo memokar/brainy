@@ -7,7 +7,7 @@ distribute contributions under both licenses.
 By submitting a contribution (pull request, patch, issue attachment or any other form) to this
 project you agree to the following:
 
-1. **Grant of rights.** You grant **<COPYRIGHT_HOLDER>** (the "Maintainer") a perpetual,
+1. **Grant of rights.** You grant **Mehmet Karakolcu** (the "Maintainer") a perpetual,
    worldwide, non-exclusive, royalty-free, irrevocable license to use, reproduce, modify,
    sublicense and distribute your contribution under the GNU AGPL-3.0 **and** under any other
    license, including proprietary/commercial licenses.

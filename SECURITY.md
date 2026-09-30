@@ -5,7 +5,7 @@ Brainy gives AI agents access to your knowledge and tasks, so security reports a
 ## Reporting a vulnerability
 
 Please **do not** open a public issue. Use GitHub's
-[private vulnerability reporting](../../security/advisories/new) or email **<CONTACT_EMAIL>**.
+[private vulnerability reporting](../../security/advisories/new) or email **mehmet@karakolcu.de**.
 Include steps to reproduce, affected version and impact. You will get an answer within 7 days.
 
 ## Security model (summary)
