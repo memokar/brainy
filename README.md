@@ -86,6 +86,13 @@ python3 scripts/serve.py
   ```bash
   claude mcp add --transport http brainy http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"
   ```
+- **Local stdio clients (e.g. Claude Desktop):** run Brainy as a subprocess:
+  ```json
+  {"mcpServers": {"brainy": {"command": "python3", "args": ["/opt/brainy/scripts/stdio.py"],
+    "env": {"BRAINY_DB_PATH": "/var/lib/brainy/brainy.db",
+            "BRAINY_KNOWLEDGE_ROOT": "/opt/brainy-knowledge", "BRAINY_TOKEN": "<token>"}}}}
+  ```
+  Try it without any setup: `python3 scripts/stdio.py --demo` (temporary data, deleted on exit).
 - **Any other MCP client with custom headers:** endpoint `https://<your-host>/mcp`, header
   `Authorization: Bearer <service token>`.
 - **Claude.ai / ChatGPT remote connectors:** use the OAuth 2.1 flow (discovery at
