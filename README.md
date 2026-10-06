@@ -118,7 +118,7 @@ for t in tests/test_*.py; do python3 "$t" || exit 1; done
 
 Brainy runs in production for its author. Current limitations:
 
-- The web UI, log messages and code comments are still mostly **German**; English i18n is planned.
+- Code comments are still partly German; all user-facing text is English.
 - Single-node design (SQLite). PostgreSQL only if real multi-writer load appears.
 
 ## License
