@@ -15,17 +15,17 @@ def main():
     seed = "--seed" in sys.argv
     path = args[0] if args else DEFAULT_DB
     conn = db.init_db(path)
-    print("DB bereit:", path, "| schema_version", db.schema_version(conn))
+    print("DB ready:", path, "| schema_version", db.schema_version(conn))
     if seed:
         admin = conn.execute("SELECT id FROM principals WHERE role='ADMIN' LIMIT 1").fetchone()
         if not admin:
             a = acl.create_principal(conn, "human", "bootstrap-admin", m.ADMIN)
             admin_id = a["id"]
-            print("Bootstrap-ADMIN angelegt: id", admin_id)
+            print("Bootstrap ADMIN created: id", admin_id)
         else:
             admin_id = admin["id"]
         neu = spaces.seed_defaults(conn, admin_id)
-        print("Default-Spaces angelegt:", neu or "(alle vorhanden)")
+        print("Default spaces created:", neu or "(all present)")
     conn.close()
 
 

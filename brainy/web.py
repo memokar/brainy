@@ -149,7 +149,7 @@ def _page(title, body, ctx=None, flash=None):
               '</form></span>' % (_esc(getattr(ctx, "_name", "?")), _esc(ctx.role),
                                   _esc(getattr(ctx, "_csrf", "")))
     fl = ('<div class="flash %s">%s</div>' % (flash[0], _esc(flash[1]))) if flash else ""
-    return ("<!doctype html><html lang=de><head><meta charset=utf-8>"
+    return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             "<title>%s &middot; Brainy Admin</title><style>%s</style></head><body>"
             "<header><span class=b>BRAINY</span>%s%s</header><main>%s%s</main>"
@@ -237,15 +237,15 @@ class BrainyWeb:
         try:
             return self._route(method, path, query, cookie_header, body_bytes)
         except PermissionDenied as e:
-            return _html(403, _page("Verboten", '<div class="card"><h1>403 &mdash; '
-                        'kein Zugriff</h1><p class=muted>%s</p><p><a href="/admin/">'
-                        'Zur&uuml;ck</a></p></div>' % _esc(str(e)[:200])))
+            return _html(403, _page("Forbidden", '<div class="card"><h1>403 &mdash; '
+                        'access denied</h1><p class=muted>%s</p><p><a href="/admin/">'
+                        'Back</a></p></div>' % _esc(str(e)[:200])))
         except (NotFound,) as e:
-            return _html(404, _page("Nicht gefunden", '<div class="card"><h1>404</h1>'
+            return _html(404, _page("Not found", '<div class="card"><h1>404</h1>'
                         '<p class=muted>%s</p></div>' % _esc(str(e)[:200])))
         except (Conflict, SecretDetected, InvalidState, PathNotAllowed, BrainyError) as e:
-            return _html(400, _page("Fehler", '<div class="card"><h1>Abgelehnt</h1>'
-                        '<p class=muted>%s</p><p><a href="/admin/">Zur&uuml;ck</a></p>'
+            return _html(400, _page("Error", '<div class="card"><h1>Rejected</h1>'
+                        '<p class=muted>%s</p><p><a href="/admin/">Back</a></p>'
                         '</div>' % _esc(str(e)[:300])))
 
     def _route(self, method, path, query, cookie_header, body):
@@ -281,9 +281,9 @@ class BrainyWeb:
                 elif self._oauth_self_ok(conn, ctx):
                     target = ctx._name   # Selbstfreigabe: Token laeuft unter dem eigenen Principal
                 else:
-                    return _html(403, _page("Verboten", '<div class="card"><h1>403</h1>'
-                                '<p class=muted>Nur der Brainy-Owner (ADMIN) darf OAuth-Clients '
-                                'autorisieren.</p></div>', ctx))
+                    return _html(403, _page("Forbidden", '<div class="card"><h1>403</h1>'
+                                '<p class=muted>Only the Brainy owner (ADMIN) may authorize '
+                                'OAuth clients.</p></div>', ctx))
                 if method == "POST":
                     form = _form(body)
                     if not self._check_csrf(ctx, form):
@@ -302,14 +302,14 @@ class BrainyWeb:
             if self._oauth_self_ok(conn, ctx):
                 ok = method == "GET" and path == "/admin/"
                 return _html(200 if ok else 403, (
-                    "<!doctype html><html lang=de><head><meta charset=utf-8>"
+                    "<!doctype html><html lang=en><head><meta charset=utf-8>"
                     "<meta name=viewport content='width=device-width,initial-scale=1'>"
                     "<title>Brainy</title><style>%s</style></head><body><main>"
                     '<div style="max-width:520px;margin:8vh auto"><div class="card">'
-                    "<h1>Angemeldet als %s</h1><p>Die Brainy-Weboberfl&auml;che ist f&uuml;r "
-                    "diesen Zugang gesperrt. Verbinde Brainy jetzt in Claude (Connector) "
-                    "&ndash; dort steht dir dein freigegebener Bereich zur Verf&uuml;gung.</p>"
-                    '<p><a href="/admin/logout">Abmelden</a></p></div></div>'
+                    "<h1>Signed in as %s</h1><p>The Brainy web interface is locked for "
+                    "this account. Connect Brainy in Claude now (connector) "
+                    "&ndash; your approved area is available to you there.</p>"
+                    '<p><a href="/admin/logout">Sign out</a></p></div></div>'
                     "</main></body></html>") % (_STYLE, _esc(ctx._name)))
             q = _q(query)
             # Writes: POST + CSRF
@@ -317,7 +317,7 @@ class BrainyWeb:
                 form = _form(body)
                 if not self._check_csrf(ctx, form):
                     return _html(403, _page("CSRF", '<div class="card"><h1>403 CSRF</h1>'
-                                '<p class=muted>Ung&uuml;ltiges/fehlendes CSRF-Token.</p>'
+                                '<p class=muted>Invalid or missing CSRF token.</p>'
                                 '</div>', ctx))
                 return self._post(conn, ctx, path, form)
             return self._get(conn, ctx, path, q)
@@ -328,20 +328,20 @@ class BrainyWeb:
     def _login_page(self, err=None, next_url=""):
         fl = ('<div class="flash err">%s</div>' % _esc(err)) if err else ""
         nxt = ('<input type="hidden" name="next" value="%s">' % _esc(next_url)) if next_url else ""
-        hint = ('<p class=muted>Nach dem Login wirst du zur OAuth-Freigabe zur&uuml;ckgeleitet.</p>'
+        hint = ('<p class=muted>After signing in you will be returned to the OAuth authorization.</p>'
                 if next_url.startswith("/oauth/authorize") else "")
         body = ('<div style="max-width:420px;margin:8vh auto"><div class="card">'
-                '<h1>Brainy Admin</h1>' + fl + hint + '<p class=muted>Anmeldung mit deinem '
-                'Brainy-Service-Token. Es wird nur ein signiertes Session-Cookie '
-                'gesetzt; das Token verl&auml;sst den Browser nur einmalig beim Login.</p>'
+                '<h1>Brainy Admin</h1>' + fl + hint + '<p class=muted>Sign in with your '
+                'Brainy service token. Only a signed session cookie is set; '
+                'the token leaves the browser only once, at sign-in.</p>'
                 '<form method="post" action="/admin/login">' + nxt +
-                '<label class="f">Service-Token<input name="token" type="password" '
+                '<label class="f">Service token<input name="token" type="password" '
                 'autocomplete="off" style="width:100%" autofocus></label>'
-                '<p><button class="primary" type="submit">Anmelden</button></p>'
+                '<p><button class="primary" type="submit">Sign in</button></p>'
                 '</form></div><p class=muted style="text-align:center;font-size:12px">'
-                'Unbekannte/abgelaufene Tokens werden abgewiesen (default deny). '
-                'Kein Auto-ADMIN.</p></div>')
-        return ("<!doctype html><html lang=de><head><meta charset=utf-8>"
+                'Unknown/expired tokens are rejected (default deny). '
+                'No auto-ADMIN.</p></div>')
+        return ("<!doctype html><html lang=en><head><meta charset=utf-8>"
                 "<meta name=viewport content='width=device-width,initial-scale=1'>"
                 "<title>Login &middot; Brainy Admin</title><style>%s</style></head>"
                 "<body><main>%s</main></body></html>") % (_STYLE, body)
@@ -352,7 +352,7 @@ class BrainyWeb:
         try:
             actx = auth.authenticate_token(conn, token)
         except AuthFailed:
-            return _html(401, self._login_page("Token ung&uuml;ltig oder abgelaufen.", next_url=nxt))
+            return _html(401, self._login_page("Invalid or expired token.", next_url=nxt))
         cookie = make_session(self.secret, actx.principal_id)
         setc = [("Set-Cookie", "%s=%s; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=%d"
                  % (COOKIE, cookie, SESSION_TTL))]
@@ -377,24 +377,24 @@ class BrainyWeb:
         scopes = oauth._norm_scope(q.get("scope")).split()
         acct = acl.get_principal_by_name(conn, target)
         if not acct or not acct["active"]:
-            return _html(500, _page("OAuth", '<div class="card">OAuth-Principal fehlt.</div>', ctx))
+            return _html(500, _page("OAuth", '<div class="card">OAuth principal missing.</div>', ctx))
         hidden = "".join('<input type="hidden" name="%s" value="%s">' % (k, _esc(q.get(k, "")))
                          for k in ("client_id", "redirect_uri", "response_type", "scope",
                                    "state", "code_challenge", "code_challenge_method"))
         scope_html = "".join("<li><span class=mono>%s</span></li>" % _esc(s) for s in scopes)
         body = ('<div style="max-width:520px;margin:6vh auto"><div class="card">'
-                '<h1>Brainy verbinden</h1>'
-                '<p>Client <b>%s</b> möchte auf dein Brainy zugreifen.</p>'
+                '<h1>Connect Brainy</h1>'
+                '<p>Client <b>%s</b> wants to access your Brainy.</p>'
                 '<table><tr><th>Client</th><td>%s</td></tr>'
                 '<tr><th>Brainy-Principal</th><td class=mono>%s</td></tr>'
                 '<tr><th>Redirect</th><td class=mono>%s</td></tr></table>'
-                '<p class=muted style="margin-top:10px">Angeforderte Scopes:</p><ul>%s</ul>'
-                '<p class=muted style="font-size:12px">Governance/ACL bleibt serverseitig '
-                'maßgeblich; Scopes können nur einschränken, nie erweitern.</p>'
+                '<p class=muted style="margin-top:10px">Requested scopes:</p><ul>%s</ul>'
+                '<p class=muted style="font-size:12px">Governance/ACL remain authoritative '
+                'on the server; scopes can only restrict, never extend.</p>'
                 '<form method="post" action="/oauth/authorize" style="display:flex;gap:8px">'
                 '<input type="hidden" name="csrf" value="%s">%s'
-                '<button class="primary" name="decision" value="approve">Zulassen</button>'
-                '<button class="danger" name="decision" value="deny">Ablehnen</button>'
+                '<button class="primary" name="decision" value="approve">Allow</button>'
+                '<button class="danger" name="decision" value="deny">Deny</button>'
                 '</form></div></div>'
                 % (_esc(cl["client_name"] or cl["client_id"]), _esc(cl["client_name"] or "—"),
                    _esc(target), _esc(redirect_uri), scope_html,
@@ -402,7 +402,7 @@ class BrainyWeb:
         # CSP: exakte Origin der (bereits validierten) redirect_uri fuer den OAuth-303 zulassen.
         ru = urllib.parse.urlparse(redirect_uri)
         fa_origin = "%s://%s" % (ru.scheme, ru.netloc)
-        return _html(200, ("<!doctype html><html lang=de><head><meta charset=utf-8>"
+        return _html(200, ("<!doctype html><html lang=en><head><meta charset=utf-8>"
                      "<meta name=viewport content='width=device-width,initial-scale=1'>"
                      "<title>Brainy OAuth</title><style>%s</style></head><body><main>%s"
                      "</main></body></html>") % (_STYLE, body), form_action_extra=fa_origin)
@@ -419,7 +419,7 @@ class BrainyWeb:
             return _redirect(_err_redirect(redirect_uri, "access_denied", state))
         acct = acl.get_principal_by_name(conn, target)
         if not acct or not acct["active"]:
-            return _html(500, _page("OAuth", '<div class="card">OAuth-Principal fehlt.</div>', ctx))
+            return _html(500, _page("OAuth", '<div class="card">OAuth principal missing.</div>', ctx))
         code = oauth.create_auth_code(conn, cl["client_id"], acct["id"], redirect_uri,
                                       form.get("scope"), form.get("code_challenge"),
                                       form.get("code_challenge_method", "S256"))
@@ -437,12 +437,12 @@ class BrainyWeb:
         redirect_uri = params.get("redirect_uri")
         cl = oauth.get_client(conn, cid) if cid else None
         if not cl:
-            return None, None, _html(400, _page("OAuth", '<div class="card"><h1>Ungültiger '
-                                    'Client</h1><p class=muted>client_id unbekannt.</p></div>'))
+            return None, None, _html(400, _page("OAuth", '<div class="card"><h1>Invalid '
+                                    'client</h1><p class=muted>Unknown client_id.</p></div>'))
         if not redirect_uri or redirect_uri not in cl["redirect_uris"]:
-            return None, None, _html(400, _page("OAuth", '<div class="card"><h1>Ungültige '
-                                    'redirect_uri</h1><p class=muted>Nicht für diesen Client '
-                                    'registriert.</p></div>'))
+            return None, None, _html(400, _page("OAuth", '<div class="card"><h1>Invalid '
+                                    'redirect_uri</h1><p class=muted>Not registered for this '
+                                    'client.</p></div>'))
         return cl, redirect_uri, None
 
     # ---- GET-Routen ------------------------------------------------------
@@ -479,7 +479,7 @@ class BrainyWeb:
             return _html(200, self._tokens(conn, ctx))
         if path == "/admin/audit":
             return _html(200, self._audit(conn, ctx, q))
-        return _html(404, _page("404", '<div class="card">Unbekannte Route.</div>', ctx))
+        return _html(404, _page("404", '<div class="card">Unknown route.</div>', ctx))
 
     # ---- POST-Routen -----------------------------------------------------
     def _post(self, conn, ctx, path, form):
@@ -517,7 +517,7 @@ class BrainyWeb:
                 root=self.service.knowledge_root)
             return _redirect("/admin/knowledge/view?path=" +
                              urllib.parse.quote(res["path"]))
-        return _html(404, _page("404", '<div class="card">Unbekannte Aktion.</div>', ctx))
+        return _html(404, _page("404", '<div class="card">Unknown action.</div>', ctx))
 
     def _task_action(self, conn, ctx, form):
         tid = _need(form, "id")
@@ -527,16 +527,16 @@ class BrainyWeb:
             raise NotFound(tid)
         # Aktiven Agent-Claim NIE ueber die Admin-UI ueberschreiben.
         if t["status"] in _ACTIVE_CLAIM:
-            return _html(409, _page("Aktiver Claim", '<div class="card"><h1>409 &mdash; '
-                        'aktiver Claim</h1><p class=muted>Task <span class=mono>%s</span> '
-                        'ist %s (von Agent bearbeitet). Ein aktiver Claim wird &uuml;ber '
-                        'die Admin-UI nicht &uuml;berschrieben.</p><p><a href="/admin/'
-                        'tasks/view?id=%s">Zur&uuml;ck</a></p></div>'
+            return _html(409, _page("Active claim", '<div class="card"><h1>409 &mdash; '
+                        'active claim</h1><p class=muted>Task <span class=mono>%s</span> '
+                        'is %s (being worked on by an agent). An active claim is never '
+                        'overridden via the admin UI.</p><p><a href="/admin/'
+                        'tasks/view?id=%s">Back</a></p></div>'
                         % (_esc(tid), _esc(t["status"]), _esc(tid)), ctx))
         target = {"ready": m.READY, "unblock": m.READY, "block": m.BLOCKED,
                   "cancel": m.CANCELLED}.get(action)
         if not target:
-            raise BrainyError("unbekannte Aktion: %s" % action)
+            raise BrainyError("unknown action: %s" % action)
         tasks.set_status(conn, ctx, tid, target)
         return _redirect("/admin/tasks/view?id=" + tid)
 
@@ -562,7 +562,7 @@ class BrainyWeb:
             'brainy %s &middot; %d Tools &middot; localhost-only</p></div>'
             % (_esc(h["version"]), len(h["tools"])),
             '<div class="card"><h2>Tasks</h2><div class="grid">%s</div></div>' % kpi_html,
-            '<div class="card"><h2>Spaces</h2><p><b>%d</b> aktiv / %d gesamt</p></div>'
+            '<div class="card"><h2>Spaces</h2><p><b>%d</b> active / %d total</p></div>'
             % (len(sp_active), len(sp_all)),
             '<div class="card"><h2>Knowledge (git)</h2><p>%s &middot; HEAD '
             '<span class=mono>%s</span></p></div>' % (gitb, _esc(gs["head"][:12])),
@@ -588,8 +588,8 @@ class BrainyWeb:
                      '<div class="kpi"><b>%d</b><span>active jobs</span></div>'
                      '<div class="kpi"><b>%d</b><span>failed jobs</span></div>'
                      '<div class="kpi"><b>%d</b><span>enabled agents</span></div>'
-                     '<div class="kpi"><b%s>%s</b><span>RAM frei (MB, Floor %s)</span></div>'
-                     '<div class="kpi"><b>%s</b><span>Swap belegt (MB)</span></div></div></div>'
+                     '<div class="kpi"><b%s>%s</b><span>RAM free (MB, floor %s)</span></div>'
+                     '<div class="kpi"><b>%s</b><span>Swap used (MB)</span></div></div></div>'
                      % (run_badge, ctrl, ds["runnable_ready"], ds["active_jobs"],
                         ds["failed_jobs"], ds["enabled_agents"], mem_style,
                         "—" if fmb is None else fmb, floor,
@@ -602,9 +602,9 @@ class BrainyWeb:
                            % (_esc(e["timestamp"][11:19]), _esc(_actor(conn, e["actor"])),
                               _esc(e["action"]), _esc(e["object_id"]))
                            for e in ev)
-            cards.append('<div class="card"><h2>Letzte Audit-Events</h2><table><tr>'
-                         '<th>Zeit</th><th>Actor</th><th>Action</th><th>Objekt</th></tr>'
-                         '%s</table><p><a href="/admin/audit">Alle &rarr;</a></p></div>'
+            cards.append('<div class="card"><h2>Recent audit events</h2><table><tr>'
+                         '<th>Time</th><th>Actor</th><th>Action</th><th>Object</th></tr>'
+                         '%s</table><p><a href="/admin/audit">All &rarr;</a></p></div>'
                          % rows)
         return _page("Dashboard", "<h1>Dashboard</h1>" + "".join(cards), ctx)
 
@@ -629,15 +629,15 @@ class BrainyWeb:
                             if cap.check(conn, ctx, cap.TASK_CREATE, s))
             agents = conn.execute("SELECT id,name FROM principals WHERE principal_type='AGENT' "
                                   "AND active=1 ORDER BY name").fetchall()
-            aopt = '<option value="">— beliebig —</option>' + "".join(
+            aopt = '<option value="">— any —</option>' + "".join(
                 '<option value="%s">%s</option>' % (a["id"], _esc(a["name"])) for a in agents)
-            acopt = '<option value="">— (kein) —</option>' + "".join(
+            acopt = '<option value="">— (none) —</option>' + "".join(
                 '<option>%s</option>' % _esc(a) for a in sorted(m.ACTION_CLASSES))
-            create = ('<div class="card"><h2>Neuer Task</h2><form method="post" '
+            create = ('<div class="card"><h2>New task</h2><form method="post" '
                       'action="/admin/tasks/create"><input type="hidden" name="csrf" '
                       'value="%s"><div class="filters"><label class="f">Space<select '
-                      'name="space">%s</select></label><label class="f">Titel<input '
-                      'name="title" size="30" required></label><label class="f">Typ'
+                      'name="space">%s</select></label><label class="f">Title<input '
+                      'name="title" size="30" required></label><label class="f">Type'
                       '<select name="type">%s</select></label><label class="f">Prio'
                       '<select name="priority">%s</select></label><label class="f">Status'
                       '<select name="status"><option>OPEN</option><option>READY</option>'
@@ -647,23 +647,23 @@ class BrainyWeb:
                       '<label class="f">Action-Class<select name="action_class">%s</select>'
                       '</label><label class="f">Preferred Agent<select name="preferred_agent">'
                       '%s</select></label><label class="f">Dependency (task_id)<input '
-                      'name="dependency" size="16"></label><button class="primary">Anlegen'
-                      '</button></div><label class="f">Beschreibung<textarea '
+                      'name="dependency" size="16"></label><button class="primary">Create'
+                      '</button></div><label class="f">Description<textarea '
                       'name="description" style="min-height:60px"></textarea></label>'
-                      '<p class=muted style="font-size:12px">Brainy stuft den Modus nach '
-                      'Policy ggf. automatisch hoch (z. B. PUBLISH/PAYMENT/DEPLOY → APPROVAL). '
-                      'Herabstufung ist nicht möglich.</p></form></div>'
+                      '<p class=muted style="font-size:12px">Brainy may automatically escalate the '
+                      'mode per policy (e.g. PUBLISH/PAYMENT/DEPLOY → APPROVAL). '
+                      'Downgrading is not possible.</p></form></div>'
                       % (_esc(ctx._csrf), spopt, opt("", sorted(m.TASK_TYPES)),
                          opt("P3", ["P1", "P2", "P3", "P4"]),
                          opt("REVIEW", ["AUTO", "REVIEW", "APPROVAL"]),
                          opt("MEDIUM", ["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
                          acopt, aopt))
         filt = ('<form class="filters" method="get" action="/admin/tasks">'
-                '<label class="f">Status<select name="status"><option value="">alle'
+                '<label class="f">Status<select name="status"><option value="">all'
                 '</option>%s</select></label><label class="f">Space<select name="space">'
-                '<option value="">alle</option>%s</select></label><label class="f">Prio'
-                '<select name="priority"><option value="">alle</option>%s</select></label>'
-                '<button>Filtern</button></form>'
+                '<option value="">all</option>%s</select></label><label class="f">Prio'
+                '<select name="priority"><option value="">all</option>%s</select></label>'
+                '<button>Filter</button></form>'
                 % (opt(fstatus, sorted(m.STATUSES)),
                    "".join('<option%s>%s</option>' % (" selected" if s == fspace else "",
                            _esc(s)) for s in readable),
@@ -674,10 +674,10 @@ class BrainyWeb:
             % (_esc(t["task_id"]), _esc((t["title"] or "")[:60]), _status_badge(t["status"]),
                _esc(sk), _esc(t["priority"]), _esc(t["type"]), _esc(t["created_at"][:16]))
             for sk, t in rows_out[:400])
-        table = ('<div class="card"><table><tr><th>Titel</th><th>Status</th><th>Space</th>'
-                 '<th>Prio</th><th>Typ</th><th>Erstellt</th></tr>%s</table>'
+        table = ('<div class="card"><table><tr><th>Title</th><th>Status</th><th>Space</th>'
+                 '<th>Prio</th><th>Type</th><th>Created</th></tr>%s</table>'
                  '<p class=muted>%d Tasks</p></div>'
-                 % (trs or '<tr><td colspan=6 class=muted>keine</td></tr>', len(rows_out)))
+                 % (trs or '<tr><td colspan=6 class=muted>none</td></tr>', len(rows_out)))
         return _page("Tasks", "<h1>Tasks</h1>" + create + filt + table, ctx)
 
     def _task_govern(self, conn, ctx, form):
@@ -694,53 +694,53 @@ class BrainyWeb:
         elif action == "reject":
             tasks.reject_task(conn, ctx, tid, note=note)
         else:
-            raise BrainyError("unbekannte Govern-Aktion: %s" % action)
+            raise BrainyError("unknown governance action: %s" % action)
         return _redirect("/admin/tasks/view?id=" + tid)
 
     def _task_detail(self, conn, ctx, tid):
         if not tid:
-            raise NotFound("task_id fehlt")
+            raise NotFound("task_id missing")
         t = tasks.get_task(conn, tid)
         if not t:
             raise NotFound(tid)
         sp = acl.get_space_row(conn, t["space_id"])
         sk = sp["key"] if sp else None
         if not cap.check(conn, ctx, cap.TASK_READ, sk):
-            raise PermissionDenied("kein Leserecht auf diesen Task")
+            raise PermissionDenied("no read permission for this task")
         fields = [("Status", _status_badge(t["status"])), ("Space", _esc(sk)),
-                  ("Typ", _esc(t["type"])), ("Prio", _esc(t["priority"])),
-                  ("Erstellt", _esc(t["created_at"])), ("Aktualisiert", _esc(t["updated_at"])),
+                  ("Type", _esc(t["type"])), ("Prio", _esc(t["priority"])),
+                  ("Created", _esc(t["created_at"])), ("Updated", _esc(t["updated_at"])),
                   ("Claimed by", _esc(_actor(conn, t["claimed_by"]))),
-                  ("Lease bis", _esc(t["lease_until"])),
-                  ("Ergebnis", _esc(t["result"])), ("Fehlergrund", _esc(t["failure_reason"]))]
+                  ("Lease until", _esc(t["lease_until"])),
+                  ("Result", _esc(t["result"])), ("Failure reason", _esc(t["failure_reason"]))]
         info = "".join("<tr><th>%s</th><td>%s</td></tr>" % (k, v) for k, v in fields)
 
         # --- Governance-Karte ---
         req, eff = t.get("execution_mode"), t.get("effective_execution_mode")
         esc = ""
         if eff and req and m.MODE_RANK.get(eff, 0) > m.MODE_RANK.get(req, 0):
-            esc = ('<div class="flash err" style="margin:8px 0">Hochgestuft: Requested '
-                   '<b>%s</b> → Effective <b>%s</b>. Grund: %s</div>'
+            esc = ('<div class="flash err" style="margin:8px 0">Escalated: requested '
+                   '<b>%s</b> → effective <b>%s</b>. Reason: %s</div>'
                    % (_esc(req), _esc(eff), _esc(t.get("policy_rule"))))
         deps = t.get("dependencies") or []
         deprows = []
         for d in deps:
             dt = tasks.get_task(conn, d)
-            deprows.append("%s (%s)" % (_esc(d[:12]), _esc(dt["status"] if dt else "fehlt")))
+            deprows.append("%s (%s)" % (_esc(d[:12]), _esc(dt["status"] if dt else "missing")))
         gfields = [
             ("Requested Mode", _esc(req)), ("Effective Mode", _esc(eff)),
             ("Risk", _esc(t.get("risk_level"))), ("Action-Class", _esc(t.get("action_class") or "—")),
-            ("Approval nötig", "ja" if t.get("approval_required") else "nein"),
-            ("Policy-Regel", _esc(t.get("policy_rule") or "—")),
+            ("Approval required", "yes" if t.get("approval_required") else "no"),
+            ("Policy rule", _esc(t.get("policy_rule") or "—")),
             ("Preferred Agent", _esc(_actor(conn, t.get("preferred_agent")) if t.get("preferred_agent") else "—")),
             ("Required Caps", _esc(", ".join(t.get("required_capabilities") or []) or "—")),
             ("Dependencies", ", ".join(deprows) if deprows else "—"),
             ("Reviewed by", _esc(_actor(conn, t.get("reviewed_by")) if t.get("reviewed_by") else "—")),
             ("Reviewed at", _esc(t.get("reviewed_at") or "—")),
-            ("Review-Note", _esc(t.get("review_note") or "—")),
+            ("Review note", _esc(t.get("review_note") or "—")),
             ("Approved by", _esc(_actor(conn, t.get("approved_by")) if t.get("approved_by") else "—")),
             ("Approved at", _esc(t.get("approved_at") or "—")),
-            ("Approval-Note", _esc(t.get("approval_note") or "—")),
+            ("Approval note", _esc(t.get("approval_note") or "—")),
         ]
         ginfo = "".join("<tr><th>%s</th><td>%s</td></tr>" % (k, v) for k, v in gfields)
         govcard = ('<div class="card"><h2>Governance</h2>%s<table>%s</table>%s</div>'
@@ -750,21 +750,21 @@ class BrainyWeb:
         actions = ""
         cur = t["status"]
         if cur in _ACTIVE_CLAIM:
-            actions = ('<p class=muted>Aktiver Agent-Claim &mdash; Status wird nur vom '
-                       'Agenten (claim/complete/fail) ge&auml;ndert. Keine Admin-'
-                       '&Uuml;berschreibung.</p>')
+            actions = ('<p class=muted>Active agent claim &mdash; status is only changed by '
+                       'the agent (claim/complete/fail). No admin '
+                       'override.</p>')
         elif cur not in (m.AWAITING_REVIEW, m.AWAITING_APPROVAL) \
                 and cap.check(conn, ctx, cap.TASK_CREATE, sk):
             btns = []
             if m.READY in m.VALID_TRANSITIONS.get(cur, set()):
-                lbl = "Freigeben (READY)" if cur != m.BLOCKED else "Entsperren (READY)"
+                lbl = "Release (READY)" if cur != m.BLOCKED else "Unblock (READY)"
                 btns.append(_action_btn(ctx, tid, "ready" if cur != m.BLOCKED else "unblock", lbl))
             if m.BLOCKED in m.VALID_TRANSITIONS.get(cur, set()):
-                btns.append(_action_btn(ctx, tid, "block", "Blockieren", "danger"))
+                btns.append(_action_btn(ctx, tid, "block", "Block", "danger"))
             if m.CANCELLED in m.VALID_TRANSITIONS.get(cur, set()):
-                btns.append(_action_btn(ctx, tid, "cancel", "Abbrechen", "danger"))
+                btns.append(_action_btn(ctx, tid, "cancel", "Cancel", "danger"))
             actions = '<div style="display:flex;gap:8px;flex-wrap:wrap">%s</div>' % "".join(btns)
-        desc = ('<div class="card"><h2>Beschreibung</h2><pre style="background:#f2f5f8;'
+        desc = ('<div class="card"><h2>Description</h2><pre style="background:#f2f5f8;'
                 'color:#1c2530">%s</pre></div>' % _esc(t["description"] or "—"))
         body = ('<h1>%s</h1><p class=mono muted>%s</p>%s<div class="card"><table>%s</table>'
                 '%s</div>%s'
@@ -789,43 +789,43 @@ class BrainyWeb:
                     % (_govern_btn(ctx, t["task_id"], "approve", "Approve", "primary"),
                        _govern_btn(ctx, t["task_id"], "reject", "Reject", "danger")))
         if cur in (m.AWAITING_REVIEW, m.AWAITING_APPROVAL):
-            reason = "Selbstfreigabe nicht erlaubt" if is_self else "kein Review-/Approve-Recht"
-            return '<p class=muted style="margin-top:8px">Wartet auf Gate — %s.</p>' % _esc(reason)
+            reason = "self-approval not allowed" if is_self else "no review/approve permission"
+            return '<p class=muted style="margin-top:8px">Waiting at gate — %s.</p>' % _esc(reason)
         return ""
 
     def _knowledge(self, conn, ctx, root):
         docs = knowledge.list_documents(conn, ctx, root=root)
         search = ('<form class="filters" method="get" action="/admin/knowledge/search">'
-                  '<label class="f">Volltextsuche<input name="q" size="40" '
-                  'placeholder="Begriff ..."></label><button>Suchen</button></form>')
+                  '<label class="f">Full-text search<input name="q" size="40" '
+                  'placeholder="Term ..."></label><button>Search</button></form>')
         trs = "".join(
             '<tr><td><a href="/admin/knowledge/view?path=%s">%s</a></td><td>%s</td>'
             '<td class=muted>%s</td><td class=muted>%s</td><td><a href="/admin/knowledge/'
-            'history?path=%s">Historie</a></td></tr>'
+            'history?path=%s">History</a></td></tr>'
             % (urllib.parse.quote(d["path"]), _esc(d["path"]), _esc(d["space"]),
                _esc((d["title"] or "")[:60]), _esc(d["git_status"]),
                urllib.parse.quote(d["path"]))
             for d in docs)
-        table = ('<div class="card"><table><tr><th>Pfad</th><th>Space</th><th>Titel</th>'
-                 '<th>Git</th><th></th></tr>%s</table><p class=muted>%d Dokumente</p></div>'
-                 % (trs or '<tr><td colspan=5 class=muted>keine</td></tr>', len(docs)))
+        table = ('<div class="card"><table><tr><th>Path</th><th>Space</th><th>Title</th>'
+                 '<th>Git</th><th></th></tr>%s</table><p class=muted>%d documents</p></div>'
+                 % (trs or '<tr><td colspan=5 class=muted>none</td></tr>', len(docs)))
         return _page("Knowledge", "<h1>Knowledge</h1>" + search + table, ctx)
 
     def _doc_view(self, conn, ctx, path, root):
         if not path:
-            raise NotFound("path fehlt")
+            raise NotFound("path missing")
         doc = knowledge.get_document(conn, ctx, path, root=root)
         can_edit = cap.check(conn, ctx, cap.KNOWLEDGE_WRITE, doc["space"])
-        edit = ('<a class="btn" href="/admin/knowledge/edit?path=%s">Bearbeiten</a> '
+        edit = ('<a class="btn" href="/admin/knowledge/edit?path=%s">Edit</a> '
                 % urllib.parse.quote(doc["path"])) if can_edit else \
-               '<span class=muted>(kein Schreibrecht)</span> '
+               '<span class=muted>(no write permission)</span> '
         body = ('<h1>%s</h1><p class=muted>Space %s &middot; HEAD <span class=mono>%s</span> '
-                '&middot; %s<a class="btn" href="/admin/knowledge/history?path=%s">Historie'
+                '&middot; %s<a class="btn" href="/admin/knowledge/history?path=%s">History'
                 '</a></p><div class="card"><pre style="background:#f2f5f8;color:#1c2530;'
                 'white-space:pre-wrap">%s</pre></div>'
                 % (_esc(doc["path"]), _esc(doc["space"]), _esc(doc["git_commit"][:12]), edit,
                    urllib.parse.quote(doc["path"]), _esc(doc["content"])))
-        return _page("Dokument", body, ctx)
+        return _page("Document", body, ctx)
 
     def _doc_search(self, conn, ctx, query, root):
         hits = knowledge.search_knowledge(conn, ctx, query, root=root) if query else []
@@ -835,18 +835,18 @@ class BrainyWeb:
             % (urllib.parse.quote(h["path"]), _esc(h["path"]), _esc(h["space"]),
                h["count"], _esc(h["snippet"][:120]))
             for h in hits)
-        body = ('<h1>Suche</h1><form class="filters" method="get" '
-                'action="/admin/knowledge/search"><label class="f">Begriff<input name="q" '
-                'size="40" value="%s"></label><button>Suchen</button></form>'
-                '<div class="card"><table><tr><th>Pfad</th><th>Space</th><th>Treffer</th>'
-                '<th>Kontext</th></tr>%s</table><p class=muted>%d Treffer</p></div>'
-                % (_esc(query), trs or '<tr><td colspan=4 class=muted>keine</td></tr>',
+        body = ('<h1>Search</h1><form class="filters" method="get" '
+                'action="/admin/knowledge/search"><label class="f">Term<input name="q" '
+                'size="40" value="%s"></label><button>Search</button></form>'
+                '<div class="card"><table><tr><th>Path</th><th>Space</th><th>Hits</th>'
+                '<th>Context</th></tr>%s</table><p class=muted>%d hits</p></div>'
+                % (_esc(query), trs or '<tr><td colspan=4 class=muted>none</td></tr>',
                    len(hits)))
-        return _page("Suche", body, ctx)
+        return _page("Search", body, ctx)
 
     def _doc_history(self, conn, ctx, path, root):
         if not path:
-            raise NotFound("path fehlt")
+            raise NotFound("path missing")
         hist = knowledge.get_document_history(conn, ctx, path, root=root)
         trs = []
         for i, c in enumerate(hist):
@@ -858,48 +858,48 @@ class BrainyWeb:
                        '<td>%s</td><td>%s</td></tr>'
                        % (_esc(c["commit"][:10]), _esc(c["timestamp"][:19]),
                           _esc(c["author"]), _esc(c["message"][:60]), diff))
-        body = ('<h1>Historie</h1><p class=mono muted>%s</p><div class="card"><table><tr>'
-                '<th>Commit</th><th>Zeit</th><th>Autor</th><th>Nachricht</th><th></th></tr>'
-                '%s</table></div><p><a href="/admin/knowledge/view?path=%s">&larr; Dokument'
+        body = ('<h1>History</h1><p class=mono muted>%s</p><div class="card"><table><tr>'
+                '<th>Commit</th><th>Time</th><th>Author</th><th>Message</th><th></th></tr>'
+                '%s</table></div><p><a href="/admin/knowledge/view?path=%s">&larr; Document'
                 '</a></p>' % (_esc(path), "".join(trs), urllib.parse.quote(path)))
-        return _page("Historie", body, ctx)
+        return _page("History", body, ctx)
 
     def _doc_diff(self, conn, ctx, path, frm, to, root):
         if not (path and frm and to):
-            raise NotFound("path/from/to fehlt")
+            raise NotFound("path/from/to missing")
         d = knowledge.get_document_diff(conn, ctx, path, frm, to, root=root)
         body = ('<h1>Diff</h1><p class=mono muted>%s &middot; %s..%s</p><div class="card">'
                 '<pre>%s</pre></div><p><a href="/admin/knowledge/history?path=%s">&larr; '
-                'Historie</a></p>' % (_esc(path), _esc(frm[:10]), _esc(to[:10]),
+                'History</a></p>' % (_esc(path), _esc(frm[:10]), _esc(to[:10]),
                                       _color_diff(d), urllib.parse.quote(path)))
         return _page("Diff", body, ctx)
 
     def _doc_edit(self, conn, ctx, path, root):
         if not path:
-            raise NotFound("path fehlt")
+            raise NotFound("path missing")
         doc = knowledge.get_document(conn, ctx, path, root=root)
         cap.require(conn, ctx, cap.KNOWLEDGE_WRITE, doc["space"])
-        body = ('<h1>Bearbeiten</h1><p class=muted>%s &middot; Basis-Commit <span class=mono>'
-                '%s</span> (Optimistic Concurrency). Secret-Guard aktiv; Commit erfolgt '
-                '&uuml;ber den Knowledge-Service.</p><div class="card"><form method="post" '
+        body = ('<h1>Edit</h1><p class=muted>%s &middot; base commit <span class=mono>'
+                '%s</span> (optimistic concurrency). Secret guard active; the commit goes '
+                'through the knowledge service.</p><div class="card"><form method="post" '
                 'action="/admin/knowledge/save"><input type="hidden" name="csrf" value="%s">'
                 '<input type="hidden" name="path" value="%s"><input type="hidden" '
                 'name="expected_git_commit" value="%s"><textarea name="content">%s</textarea>'
                 '<div class="filters" style="margin-top:10px"><label class="f">'
-                'Commit-Nachricht<input name="commit_message" size="46" required></label>'
-                '<button class="primary">Speichern</button><a class="btn" '
-                'href="/admin/knowledge/view?path=%s">Abbrechen</a></div></form></div>'
+                'Commit message<input name="commit_message" size="46" required></label>'
+                '<button class="primary">Save</button><a class="btn" '
+                'href="/admin/knowledge/view?path=%s">Cancel</a></div></form></div>'
                 % (_esc(doc["path"]), _esc(doc["git_commit"][:12]), _esc(ctx._csrf),
                    _esc(doc["path"]), _esc(doc["git_commit"]), _esc(doc["content"]),
                    urllib.parse.quote(doc["path"])))
-        return _page("Bearbeiten", body, ctx)
+        return _page("Edit", body, ctx)
 
     def _spaces(self, conn, ctx):
         sps = spaces.list_spaces(conn, only_active=False)
         cards = []
         for s in sps:
-            badge = ('<span class="badge ok">aktiv</span>' if s["active"]
-                     else '<span class="badge bad">inaktiv</span>')
+            badge = ('<span class="badge ok">active</span>' if s["active"]
+                     else '<span class="badge bad">inactive</span>')
             aclrows = ""
             if cap.check(conn, ctx, cap.SPACE_READ, s["key"]) or ctx.role == m.ADMIN:
                 for a in acl.list_acl(conn, s["key"]):
@@ -908,8 +908,8 @@ class BrainyWeb:
                     aclrows += ('<tr><td>%s</td><td class=muted>%s</td></tr>'
                                 % (_esc(p["name"] if p else a["principal_id"]),
                                    _esc(caps or "—")))
-            acltab = ('<table><tr><th>Principal</th><th>Rechte</th></tr>%s</table>'
-                      % aclrows) if aclrows else '<p class=muted>keine ACL-Eintr&auml;ge</p>'
+            acltab = ('<table><tr><th>Principal</th><th>Permissions</th></tr>%s</table>'
+                      % aclrows) if aclrows else '<p class=muted>no ACL entries</p>'
             cards.append('<div class="card"><h2>%s %s</h2><p class=muted>%s</p>%s</div>'
                          % (_esc(s["key"]), badge, _esc(s["name"]), acltab))
         return _page("Spaces", "<h1>Spaces</h1>" + "".join(cards), ctx)
@@ -935,11 +935,11 @@ class BrainyWeb:
                        _esc(a["worker_type"]), en, a["max_concurrency"],
                        _esc(a["status"]), _esc((a["last_seen"] or "—")[:19] if a["last_seen"]
                                                else "—"), btn))
-        body = ('<h1>Agents</h1><p class=muted>Worker-Registry. Capabilities/Spaces stammen '
-                'aus der Principal-ACL. Keine Secrets.</p><div class="card"><table><tr>'
+        body = ('<h1>Agents</h1><p class=muted>Worker registry. Capabilities/spaces come '
+                'from the principal ACL. No secrets.</p><div class="card"><table><tr>'
                 '<th>Agent</th><th>Principal</th><th>Worker</th><th>Enabled</th>'
                 '<th>Concurrency</th><th>Status</th><th>Last seen</th><th></th></tr>%s'
-                '</table></div>' % (trs or '<tr><td colspan=8 class=muted>keine</td></tr>'))
+                '</table></div>' % (trs or '<tr><td colspan=8 class=muted>none</td></tr>'))
         return _page("Agents", body, ctx)
 
     def _jobs(self, conn, ctx, q):
@@ -956,12 +956,12 @@ class BrainyWeb:
                        _esc((j["started_at"] or "—")[:19] if j["started_at"] else "—"),
                        _esc(j["error_summary"] or "—"),
                        _esc((j["result_ref"] or "—")[:40])))
-        body = ('<h1>Execution Jobs</h1><p class=muted>Ausfuehrungen (ohne dispatch_token). '
+        body = ('<h1>Execution Jobs</h1><p class=muted>Executions (without dispatch_token). '
                 'Status QUEUED/STARTING/RUNNING/SUCCEEDED/FAILED/TIMED_OUT/CANCELLED.</p>'
                 '<div class="card"><table><tr><th>Task</th><th>Agent</th><th>Worker</th>'
-                '<th>Status</th><th>Attempt</th><th>Start</th><th>Fehler</th><th>Result</th>'
+                '<th>Status</th><th>Attempt</th><th>Start</th><th>Error</th><th>Result</th>'
                 '</tr>%s</table><p class=muted>%d Jobs</p></div>'
-                % (trs or '<tr><td colspan=8 class=muted>keine</td></tr>', len(jobs)))
+                % (trs or '<tr><td colspan=8 class=muted>none</td></tr>', len(jobs)))
         return _page("Jobs", body, ctx)
 
     def _principals(self, conn, ctx):
@@ -971,12 +971,12 @@ class BrainyWeb:
         trs = "".join('<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
                       '<td class=muted>%s</td></tr>'
                       % (r["id"], _esc(r["name"]), _esc(r["principal_type"]), _esc(r["role"]),
-                         ('<span class="badge ok">aktiv</span>' if r["active"]
-                          else '<span class="badge bad">inaktiv</span>'),
+                         ('<span class="badge ok">active</span>' if r["active"]
+                          else '<span class="badge bad">inactive</span>'),
                          _esc(r["created_at"][:16])) for r in rows)
-        body = ('<h1>Principals</h1><p class=muted>Keine Tokenwerte &mdash; nur Metadaten.'
-                '</p><div class="card"><table><tr><th>ID</th><th>Name</th><th>Typ</th>'
-                '<th>Rolle</th><th>Status</th><th>Erstellt</th></tr>%s</table></div>' % trs)
+        body = ('<h1>Principals</h1><p class=muted>No token values &mdash; metadata only.'
+                '</p><div class="card"><table><tr><th>ID</th><th>Name</th><th>Type</th>'
+                '<th>Role</th><th>Status</th><th>Created</th></tr>%s</table></div>' % trs)
         return _page("Principals", body, ctx)
 
     def _tokens(self, conn, ctx):
@@ -986,7 +986,7 @@ class BrainyWeb:
         for r in rows:
             p = acl.get_principal(conn, r["principal_id"])
             state = ('<span class="badge bad">revoked</span>' if r["revoked_at"] or
-                     not r["active"] else '<span class="badge ok">aktiv</span>')
+                     not r["active"] else '<span class="badge ok">active</span>')
             trs += ('<tr><td class=mono>%s</td><td>%s</td><td class=muted>%s</td><td>%s</td>'
                     '<td class=muted>%s</td><td class=muted>%s</td><td class=muted>%s</td>'
                     '</tr>'
@@ -994,10 +994,10 @@ class BrainyWeb:
                        _esc(r["description"] or "—"), state, _esc((r["created_at"] or "")[:16]),
                        _esc((r["expires_at"] or "—")[:16] if r["expires_at"] else "—"),
                        _esc((r["last_used_at"] or "—")[:16] if r["last_used_at"] else "—")))
-        body = ('<h1>Service Tokens</h1><p class=muted>Nur Token-ID + Metadaten. '
-                'Token-Hash/Klartext werden niemals angezeigt.</p><div class="card">'
-                '<table><tr><th>Token-ID</th><th>Principal</th><th>Beschreibung</th>'
-                '<th>Status</th><th>Erstellt</th><th>Ablauf</th><th>Zuletzt genutzt</th>'
+        body = ('<h1>Service Tokens</h1><p class=muted>Token ID + metadata only. '
+                'Token hash/plaintext are never displayed.</p><div class="card">'
+                '<table><tr><th>Token ID</th><th>Principal</th><th>Description</th>'
+                '<th>Status</th><th>Created</th><th>Expires</th><th>Last used</th>'
                 '</tr>%s</table></div>' % trs)
         return _page("Tokens", body, ctx)
 
@@ -1020,14 +1020,14 @@ class BrainyWeb:
         filt = ('<form class="filters" method="get" action="/admin/audit">'
                 '<label class="f">Actor<input name="actor" value="%s" size="10"></label>'
                 '<label class="f">Action<input name="action" value="%s" size="16"></label>'
-                '<label class="f">Space<select name="space"><option value="">alle</option>'
-                '%s</select></label><button>Filtern</button></form>'
+                '<label class="f">Space<select name="space"><option value="">all</option>'
+                '%s</select></label><button>Filter</button></form>'
                 % (_esc(factor), _esc(faction), spopt))
-        body = ('<h1>Audit</h1><p class=muted>Append-only &mdash; nur Lesen. Keine '
-                'Bearbeitung/L&ouml;schung m&ouml;glich.</p>%s<div class="card"><table><tr>'
-                '<th>Zeit</th><th>Actor</th><th>Action</th><th>Typ</th><th>Objekt</th></tr>'
+        body = ('<h1>Audit</h1><p class=muted>Append-only &mdash; read-only. No '
+                'editing/deletion possible.</p>%s<div class="card"><table><tr>'
+                '<th>Time</th><th>Actor</th><th>Action</th><th>Type</th><th>Object</th></tr>'
                 '%s</table><p class=muted>%d Events</p></div>'
-                % (filt, trs or '<tr><td colspan=5 class=muted>keine</td></tr>', len(ev)))
+                % (filt, trs or '<tr><td colspan=5 class=muted>none</td></tr>', len(ev)))
         return _page("Audit", body, ctx)
 
     # ---- Helpers ---------------------------------------------------------
@@ -1040,7 +1040,7 @@ class BrainyWeb:
 def _need(form, key):
     v = form.get(key)
     if v is None or v == "":
-        raise BrainyError("Pflichtfeld fehlt: %s" % key)
+        raise BrainyError("required field missing: %s" % key)
     return v
 
 
@@ -1076,7 +1076,7 @@ def _govern_btn(ctx, tid, action, label, cls=""):
     return ('<form class="inline" method="post" action="/admin/tasks/govern">'
             '<input type="hidden" name="csrf" value="%s"><input type="hidden" name="id" '
             'value="%s"><input type="hidden" name="action" value="%s">'
-            '<input name="note" placeholder="Notiz (optional)" size="16" '
+            '<input name="note" placeholder="Note (optional)" size="16" '
             'style="margin-right:4px"><button class="%s">%s</button></form>'
             % (_esc(ctx._csrf), _esc(tid), _esc(action), _esc(cls), label))
 
@@ -1090,4 +1090,4 @@ def _color_diff(text):
         elif line.startswith("-") and not line.startswith("---"):
             cls = "diff-del"
         out.append('<span class="%s">%s</span>' % (cls, _esc(line)) if cls else _esc(line))
-    return "\n".join(out) or "(keine Aenderung)"
+    return "\n".join(out) or "(no changes)"

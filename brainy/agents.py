@@ -44,7 +44,7 @@ def list_agents(conn):
 def set_enabled(conn, actor, agent_name, on):
     """Nur ADMIN darf Agenten (de)aktivieren."""
     if not acl.is_admin(conn, pid(actor)):
-        raise PermissionDenied("nur ADMIN darf Agenten schalten")
+        raise PermissionDenied("only ADMIN may enable/disable agents")
     if not get_agent(conn, agent_name):
         raise NotFound("agent %s" % agent_name)
     conn.execute("UPDATE agents SET enabled=?, updated_at=? WHERE agent_name=?",

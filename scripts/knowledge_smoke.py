@@ -17,16 +17,16 @@ def main():
     aid = admin["id"]
 
     docs = knowledge.list_documents(conn, aid)
-    print("1) list_documents:", len(docs), "kanonische .md")
+    print("1) list_documents:", len(docs), "canonical .md")
     for d in docs[:5]:
         print("   -", d["path"], "| space", d["space"], "| git", d["git_status"])
 
     if docs:
         one = knowledge.get_document(conn, aid, docs[0]["path"])
-        print("2) get_document:", one["path"], "->", len(one["content"]), "Bytes")
+        print("2) get_document:", one["path"], "->", len(one["content"]), "bytes")
 
     hits = knowledge.search_knowledge(conn, aid, "brainy", limit=5)
-    print("3) search 'brainy':", len(hits), "Treffer",
+    print("3) search 'brainy':", len(hits), "hits",
           [h["path"] for h in hits][:5])
 
     st = knowledge.get_git_status(conn, aid)
@@ -34,10 +34,10 @@ def main():
 
     if docs:
         hist = knowledge.get_document_history(conn, aid, docs[0]["path"], limit=3)
-        print("5) history", docs[0]["path"], ":", len(hist), "Commits")
+        print("5) history", docs[0]["path"], ":", len(hist), "commits")
         for h in hist:
             print("   ", h["commit"][:10], h["timestamp"], h["message"][:50])
-    print("SMOKE (read-only) OK — kein Write ausgefuehrt")
+    print("SMOKE (read-only) OK — no write performed")
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ DEFAULT_SPACES = [
 def create_space(conn, admin_id, key, name, description=""):
     """Nur ADMIN darf Spaces anlegen (globale Verwaltung)."""
     if not acl.is_admin(conn, admin_id):
-        raise PermissionDenied("nur ADMIN darf Spaces anlegen")
+        raise PermissionDenied("only ADMIN may create spaces")
     now = now_iso()
     conn.execute(
         "INSERT INTO spaces(key, name, description, active, created_at, updated_at) "

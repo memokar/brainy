@@ -77,13 +77,13 @@ def is_owner(from_id):
 def _diff_preview(old, new, path, max_chars=3000):
     new_lines = (new or "").splitlines()
     if old is None:
-        body = "(neues Dokument)\n" + "\n".join("+ " + ln for ln in new_lines[:80])
+        body = "(new document)\n" + "\n".join("+ " + ln for ln in new_lines[:80])
     else:
         d = list(difflib.unified_diff(old.splitlines(), new_lines,
                                       lineterm="", n=2))
-        body = "\n".join(d[2:]) if len(d) > 2 else "(keine Zeilenaenderung)"
+        body = "\n".join(d[2:]) if len(d) > 2 else "(no line changes)"
     if len(body) > max_chars:
-        body = body[:max_chars] + "\n… (gekuerzt)"
+        body = body[:max_chars] + "\n… (truncated)"
     return body
 
 
@@ -100,19 +100,19 @@ def send_approval_request(proposal, root=None):
     except Exception:
         old = None
     diff = _diff_preview(old, proposal["content"], proposal["path"])
-    text = ("Brainy: Freigabe angefragt\n"
+    text = ("Brainy: approval requested\n"
             "Space:  %s\n"
-            "Datei:  %s\n"
+            "File:   %s\n"
             "ID:     %s\n"
             "Commit: %s\n\n"
-            "--- Diff-Vorschau ---\n%s"
+            "--- Diff preview ---\n%s"
             % (proposal["space"], proposal["path"], proposal["proposal_id"],
                proposal.get("commit_message", ""), diff))
     if len(text) > _MAX_MSG:
-        text = text[:_MAX_MSG] + "\n… (gekuerzt)"
+        text = text[:_MAX_MSG] + "\n… (truncated)"
     kb = {"inline_keyboard": [[
-        {"text": "✅ Freigeben", "callback_data": "ap:" + proposal["proposal_id"]},
-        {"text": "❌ Ablehnen", "callback_data": "rj:" + proposal["proposal_id"]},
+        {"text": "✅ Approve", "callback_data": "ap:" + proposal["proposal_id"]},
+        {"text": "❌ Reject", "callback_data": "rj:" + proposal["proposal_id"]},
     ]]}
     res = _api("sendMessage", {"chat_id": owner_chat_id(), "text": text,
                                "reply_markup": kb})

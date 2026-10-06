@@ -50,13 +50,13 @@ class MockWorker(Worker):
     def run(self, task, job):
         b = self.behaviors.get(task["task_id"], "success")
         if b == "transient":
-            raise WorkerError("transienter Startfehler (mock)", code="transient", retryable=True)
+            raise WorkerError("transient start error (mock)", code="transient", retryable=True)
         if b == "permanent":
             raise WorkerError("permission denied (mock)", code="permission_denied",
                               retryable=False)
         if b == "hang":
             # Simuliert einen nicht antwortenden Worker -> Aufrufer behandelt als Timeout.
-            raise WorkerError("kein Heartbeat (mock hang)", code="timeout", retryable=True)
+            raise WorkerError("no heartbeat (mock hang)", code="timeout", retryable=True)
         return {"status": "SUCCEEDED",
                 "summary": "[MOCK] erledigt: %s" % (task.get("title") or task["task_id"]),
                 "result": "[MOCK] result for task %s" % task["task_id"],
@@ -72,7 +72,7 @@ class ClaudeAdapterWorker(Worker):
     status = "WAITING_FOR_CLIENT_ADAPTER"
 
     def run(self, task, job):
-        raise WorkerUnavailable("Claude-Worker-Adapter nicht verfuegbar "
+        raise WorkerUnavailable("Claude worker adapter not available "
                                 "(WAITING_FOR_CLIENT_ADAPTER)")
 
 

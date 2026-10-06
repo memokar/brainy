@@ -28,28 +28,28 @@ _WRITE_TOOLS = {"write_document", "append_document"}
 # gelten so fuer Claude Web/Desktop/Mobile ueber den Connector. Zentrale "Brainy-first"- und
 # "Selective Auto-Capture"-Policy. Governance/ACL/Secret-Guard bleiben serverseitig massgeblich.
 MCP_INSTRUCTIONS = (
-    "Brainy ist die PRIMAERE Wissens-/Arbeitsquelle (Single Source of Truth).\n"
-    "BRAINY-FIRST: Bei Aussagen/Fragen mit Projekt-, Tool-, System- oder Arbeitskontext ZUERST "
-    "Brainy durchsuchen (search_knowledge / list_documents) und bevorzugt bestehende Dokumente "
-    "lesen (get_document), statt primaer aus Modell-/Chatgedaechtnis zu antworten. Enthaelt "
-    "Brainy nichts Passendes, das ausdruecklich sagen; bei Mehrdeutigkeit nachfragen statt raten. "
-    "Widersprechen Brainy und Gedaechtnis, gilt Brainy als aktuelle SoT (sofern nicht als veraltet "
-    "markiert) - Widerspruch sichtbar machen, nicht still ueberschreiben.\n"
-    "SELECTIVE AUTO-CAPTURE: Dauerhaft relevante Informationen automatisch zurueckschreiben - "
-    "Entscheidungen, Anforderungen, Aenderungen, Bugs/Fehlerzustaende, Architektur-/Konfig-"
-    "Entscheidungen, offene Punkte/Todos, feste Praeferenzen/Projektregeln, wichtige Betriebsinfos. "
-    "Bevorzugt das passendste BESTEHENDE Dokument gezielt aktualisieren/ergaenzen (write_document "
-    "mit expected_git_commit fuer Optimistic Concurrency; append_document nur fuer shared/todo.md) "
-    "statt neue Dateien/Duplikate; bestehende Struktur/Terminologie und den passendsten Space nutzen.\n"
-    "NICHT automatisch speichern: Smalltalk, fluechtige Ideen ohne Entscheidung, Vermutungen, "
-    "Brainstorming-Fragmente, triviale Einmalfragen, HYPOTHETISCHES ('vielleicht/koennte/was waere "
-    "wenn'), als Frage Formuliertes, unklar zuordenbare oder einer bestehenden SoT widersprechende "
-    "Aussagen ohne klar formulierte neue Entscheidung -> dann zuerst nachfragen. "
-    "NIEMALS Secrets/Tokens/Passwoerter speichern. Unsicheres nicht als Fakt speichern, sondern "
-    "nachfragen oder ausdruecklich als 'unbestaetigt / zu pruefen' kennzeichnen.\n"
-    "TRANSPARENZ: Nach automatischem Speichern KURZ melden, was und in welchem Brainy-Pfad/Space "
-    "geaendert wurde (kein langer Aenderungsbericht). Details: shared/conventions.md.\n"
-    "Sicherheit: ACL/Governance/Secret-Guard/Pfad-Allowlist gelten serverseitig; keine Shell/FS/SQL."
+    "Brainy is the PRIMARY source of knowledge and work (Single Source of Truth).\n"
+    "BRAINY-FIRST: For statements/questions involving project, tool, system or work context, "
+    "search Brainy FIRST (search_knowledge / list_documents) and prefer reading existing documents "
+    "(get_document) instead of answering primarily from model/chat memory. If Brainy contains "
+    "nothing relevant, say so explicitly; if something is ambiguous, ask instead of guessing. "
+    "If Brainy and memory disagree, Brainy counts as the current SoT (unless marked as outdated) "
+    "- make the contradiction visible, do not silently overwrite it.\n"
+    "SELECTIVE AUTO-CAPTURE: Automatically write back information of lasting relevance - "
+    "decisions, requirements, changes, bugs/error states, architecture/configuration "
+    "decisions, open items/todos, firm preferences/project rules, important operational info. "
+    "Prefer targeted updates/additions to the most fitting EXISTING document (write_document "
+    "with expected_git_commit for optimistic concurrency; append_document only for shared/todo.md) "
+    "instead of new files/duplicates; reuse the existing structure/terminology and the most fitting space.\n"
+    "DO NOT save automatically: small talk, fleeting ideas without a decision, speculation, "
+    "brainstorming fragments, trivial one-off questions, anything HYPOTHETICAL ('maybe/could/what "
+    "if'), things phrased as questions, statements that cannot be clearly assigned or that contradict "
+    "an existing SoT without a clearly stated new decision -> ask first in that case. "
+    "NEVER store secrets/tokens/passwords. Do not store uncertain information as fact; instead ask "
+    "or explicitly mark it as 'unconfirmed / to be verified'.\n"
+    "TRANSPARENCY: After saving automatically, BRIEFLY report what was changed and in which Brainy "
+    "path/space (no long change report). Details: shared/conventions.md.\n"
+    "Security: ACL/governance/secret guard/path allowlist are enforced server-side; no shell/FS/SQL."
 )
 
 # Fehler -> (standardisierter code, HTTP-Status)
@@ -76,7 +76,7 @@ def _map_error(exc):
 
 def _req(params, key):
     if key not in params or params[key] in (None, ""):
-        raise BrainyError("Pflichtfeld fehlt: %s" % key)
+        raise BrainyError("required field missing: %s" % key)
     return params[key]
 
 
@@ -138,7 +138,7 @@ def _t_list_tasks(conn, ctx, p, root):
     space = p.get("space")
     if space:
         if not cap.check(conn, ctx, cap.TASK_READ, space):
-            raise PermissionDenied("kein Leserecht im space %s" % space)
+            raise PermissionDenied("no read permission in space %s" % space)
         return {"tasks": tasks.list_tasks(conn, space=space, status=status, type=typ, limit=limit)}
     # ohne Space: nur Tasks aus lesbaren Spaces (ADMIN: alle)
     if ctx.allowed_spaces == ["*"]:
@@ -156,7 +156,7 @@ def _t_get_task(conn, ctx, p, root):
     sp = acl.get_space_row(conn, t["space_id"])
     space_key = sp["key"] if sp else None
     if not cap.check(conn, ctx, cap.TASK_READ, space_key):
-        raise PermissionDenied("kein Leserecht auf task %s" % t["task_id"])
+        raise PermissionDenied("no read permission for task %s" % t["task_id"])
     return t
 
 
@@ -387,39 +387,39 @@ TOOL_SCHEMAS = {
 }
 
 _TOOL_DESC = {
-    "list_spaces": "Sichtbare Knowledge-Spaces auflisten.",
-    "list_documents": "Kanonische Markdown-Dokumente auflisten (optional space).",
-    "get_document": "Ein Knowledge-Dokument lesen (Pfad-Allowlist, ACL).",
-    "search_knowledge": "Knowledge case-insensitive durchsuchen (ACL, optional space).",
-    "write_document": "Knowledge-Dokument schreiben (Git-Commit; ACL/Secret-Guard).",
-    "append_document": "An erlaubtes Ziel anhaengen (z.B. shared/todo.md).",
-    "propose_write": "Aenderung an einem Knowledge-Dokument VORSCHLAGEN (kein direkter "
-                     "Write). Der Owner gibt per Telegram frei; erst dann wird committed. "
-                     "Nutze das, wenn du kein direktes Schreibrecht hast.",
-    "list_tasks": "Tasks eines lesbaren Space auflisten.",
-    "get_task": "Einen Task lesen.",
-    "create_task": "Task anlegen.",
-    "claim_task": "Task atomar claimen (Lease + claim_token).",
-    "renew_claim": "Lease verlaengern.",
-    "release_task": "Eigenen Claim freigeben.",
-    "complete_task": "Task abschliessen — governance-gated (AUTO->COMPLETED, "
+    "list_spaces": "List visible knowledge spaces.",
+    "list_documents": "List canonical Markdown documents (optional space).",
+    "get_document": "Read a knowledge document (path allowlist, ACL).",
+    "search_knowledge": "Search knowledge case-insensitively (ACL, optional space).",
+    "write_document": "Write a knowledge document (git commit; ACL/secret guard).",
+    "append_document": "Append to an allowed target (e.g. shared/todo.md).",
+    "propose_write": "PROPOSE a change to a knowledge document (no direct write). "
+                     "The owner approves via Telegram; only then is it committed. "
+                     "Use this when you do not have direct write permission.",
+    "list_tasks": "List tasks of a readable space.",
+    "get_task": "Read a task.",
+    "create_task": "Create a task.",
+    "claim_task": "Claim a task atomically (lease + claim_token).",
+    "renew_claim": "Extend the lease.",
+    "release_task": "Release your own claim.",
+    "complete_task": "Complete a task — governance-gated (AUTO->COMPLETED, "
                      "REVIEW->AWAITING_REVIEW, APPROVAL->AWAITING_APPROVAL).",
-    "fail_task": "Task idempotent als fehlgeschlagen markieren.",
-    "review_task": "Review-Gate entscheiden (decision=accept|reject). Erfordert Review-Recht; "
-                   "keine Selbst-Review.",
-    "approve_task": "Approval-Gate freigeben (-> APPROVED). Erfordert Approve-Recht; "
-                    "keine Selbstfreigabe.",
-    "reject_task": "Approval-Gate ablehnen (-> REJECTED). Erfordert Approve-Recht.",
-    "list_runnable_tasks": "Fuer diesen Principal ausfuehrbare Tasks (READY, Deps erfuellt, "
+    "fail_task": "Mark a task as failed (idempotent).",
+    "review_task": "Decide the review gate (decision=accept|reject). Requires review permission; "
+                   "no self-review.",
+    "approve_task": "Approve the approval gate (-> APPROVED). Requires approve permission; "
+                    "no self-approval.",
+    "reject_task": "Reject at the approval gate (-> REJECTED). Requires approve permission.",
+    "list_runnable_tasks": "Tasks runnable by this principal (READY, deps satisfied, "
                            "ACL, required_capabilities, preferred_agent).",
-    "list_agents": "Agent-Registry auflisten (kein Secret).",
-    "get_agent_status": "Status eines Agenten.",
-    "list_execution_jobs": "Execution-Jobs auflisten (ohne dispatch_token).",
-    "get_execution_job": "Einen Execution-Job lesen (ohne dispatch_token).",
-    "enable_agent": "Agent aktivieren (ADMIN).",
-    "disable_agent": "Agent deaktivieren (ADMIN).",
-    "pause_dispatcher": "Dispatcher global pausieren (ADMIN, Kill-Switch).",
-    "resume_dispatcher": "Dispatcher global fortsetzen (ADMIN).",
+    "list_agents": "List the agent registry (no secrets).",
+    "get_agent_status": "Status of an agent.",
+    "list_execution_jobs": "List execution jobs (without dispatch_token).",
+    "get_execution_job": "Read an execution job (without dispatch_token).",
+    "enable_agent": "Enable an agent (ADMIN).",
+    "disable_agent": "Disable an agent (ADMIN).",
+    "pause_dispatcher": "Pause the dispatcher globally (ADMIN, kill switch).",
+    "resume_dispatcher": "Resume the dispatcher globally (ADMIN).",
 }
 
 
@@ -516,17 +516,17 @@ class BrainyService:
         if method == "GET" and path == "/health":
             return 200, self.health()
         if path != "/rpc" or method != "POST":
-            return 404, _err("not_found", "unbekannte Route")
+            return 404, _err("not_found", "unknown route")
         try:
             payload = json.loads(body_bytes or b"{}")
             if not isinstance(payload, dict):
                 raise ValueError()
         except Exception:
-            return 400, _err("invalid_request", "Body ist kein JSON-Objekt")
+            return 400, _err("invalid_request", "body is not a JSON object")
         tool = payload.get("tool")
         params = payload.get("params") or {}
         if not isinstance(params, dict):
-            return 400, _err("invalid_request", "params muss ein Objekt sein")
+            return 400, _err("invalid_request", "params must be an object")
 
         conn = self._conn()
         try:
@@ -534,18 +534,18 @@ class BrainyService:
             try:
                 ctx = self._auth(conn, auth_header)
             except AuthFailed:
-                return 401, _err("unauthorized", "Authentifizierung fehlgeschlagen")
+                return 401, _err("unauthorized", "authentication failed")
             # Rate-Limit
             key = ctx.token_id or ("pid:%s" % ctx.principal_id)
             if not self.limiter.allow(key):
                 audit.log(conn, ctx.principal_id, "rate_limited", "mcp", tool, None,
                           {"tool": tool}, commit=True)
-                return 429, _err("rate_limited", "zu viele Anfragen")
+                return 429, _err("rate_limited", "too many requests")
             # Dispatch
             if tool not in TOOLS:
-                return 400, _err("invalid_request", "unbekanntes Tool")
+                return 400, _err("invalid_request", "unknown tool")
             if not _scope_allows(ctx, tool):
-                return 403, _err("forbidden", "kein Scope/Zugriff fuer dieses Tool")
+                return 403, _err("forbidden", "no scope/access for this tool")
             t0 = time.time()
             try:
                 result = TOOLS[tool](conn, ctx, params, self.knowledge_root)
@@ -559,7 +559,7 @@ class BrainyService:
                 # KEIN Traceback nach aussen
                 audit.log(conn, ctx.principal_id, "mcp_tool_called", "mcp", tool, None,
                           {"tool": tool, "status": "error"}, commit=True)
-                return 500, _err("internal_error", "interner Fehler")
+                return 500, _err("internal_error", "internal error")
             audit.log(conn, ctx.principal_id, "mcp_tool_called", "mcp", tool, None,
                       {"tool": tool, "status": "ok", "space": params.get("space"),
                        "ms": int((time.time() - t0) * 1000)}, commit=True)
@@ -621,14 +621,14 @@ class BrainyService:
                 args = params.get("arguments") or {}
                 if name not in TOOLS:
                     return 200, "application/json", json.dumps(_rpc_result(mid, {
-                        "content": [{"type": "text", "text": "unbekanntes Tool: %s" % name}],
+                        "content": [{"type": "text", "text": "unknown tool: %s" % name}],
                         "isError": True})).encode()
                 if not _scope_allows(ctx, name):
                     audit.log(conn, ctx.principal_id, "mcp_tool_denied", "mcp", name, None,
                               {"tool": name, "via": "mcp", "code": "forbidden_scope"}, commit=True)
                     return 200, "application/json", json.dumps(_rpc_result(mid, {
                         "content": [{"type": "text", "text": json.dumps(
-                            {"error": "forbidden", "message": "kein Scope/Zugriff fuer dieses Tool"})}],
+                            {"error": "forbidden", "message": "no scope/access for this tool"})}],
                         "isError": True})).encode()
                 key = ctx.token_id or ("pid:%s" % ctx.principal_id)
                 if not self.limiter.allow(key):
@@ -691,30 +691,30 @@ class BrainyService:
         if not cb:
             return 200, "application/json", b'{"ok":true}'   # nur Callback-Updates relevant
         if not telegram.is_owner(cb["from_id"]):
-            telegram.answer_callback(cb["callback_query_id"], "Nicht autorisiert.")
+            telegram.answer_callback(cb["callback_query_id"], "Not authorized.")
             return 200, "application/json", b'{"ok":true}'
         conn = self._conn()
         try:
             approver = acl.get_principal_by_name(conn, config.TELEGRAM_APPROVER_PRINCIPAL)
             if not approver:
-                telegram.answer_callback(cb["callback_query_id"], "Freigabe-Principal fehlt.")
+                telegram.answer_callback(cb["callback_query_id"], "Approver principal missing.")
                 return 200, "application/json", b'{"ok":true}'
             ctx = auth.context_for_principal(conn, approver["id"])
             pid_ = cb["proposal_id"]
             try:
                 if cb["action"] == "ap":
                     res = proposals.apply_proposal(conn, ctx, pid_, root=self.knowledge_root)
-                    txt = "Freigegeben ✅ (%s)" % (str(res.get("result_commit") or "?")[:10])
+                    txt = "Approved ✅ (%s)" % (str(res.get("result_commit") or "?")[:10])
                 elif cb["action"] == "rj":
                     proposals.reject_proposal(conn, ctx, pid_)
-                    txt = "Abgelehnt ❌"
+                    txt = "Rejected ❌"
                 else:
-                    txt = "Unbekannte Aktion."
+                    txt = "Unknown action."
             except Exception as e:
-                txt = "Fehler: %s" % (str(e)[:120])
+                txt = "Error: %s" % (str(e)[:120])
             telegram.answer_callback(cb["callback_query_id"], txt)
             telegram.edit_message(cb.get("chat_id"), cb.get("message_id"),
-                                  "Vorschlag %s: %s" % (pid_, txt))
+                                  "Proposal %s: %s" % (pid_, txt))
             return 200, "application/json", b'{"ok":true}'
         finally:
             conn.close()
@@ -863,8 +863,8 @@ def make_handler(service, web=None):
 def run_server(service, host, port, allow_public=False, web=None):
     from . import config
     if not config.is_localhost(host) and not allow_public:
-        raise BrainyError("Bind-Host %s ist nicht localhost und ALLOW_PUBLIC!=1 "
-                          "-> Start verweigert (Phase D localhost-only)" % host)
+        raise BrainyError("bind host %s is not localhost and ALLOW_PUBLIC!=1 "
+                          "-> refusing to start (localhost-only)" % host)
     httpd = ThreadingHTTPServer((host, port), make_handler(service, web=web))
     print("brainy service listening on http://%s:%d (localhost-only=%s)"
           % (host, port, config.is_localhost(host)), flush=True)

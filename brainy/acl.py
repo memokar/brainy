@@ -17,9 +17,9 @@ def create_principal(conn, principal_type, name, role, active=1, actor="system",
                      metadata=None):
     ptype = m.normalize_ptype(principal_type)
     if ptype is None:
-        raise BrainyError("ungueltiger principal_type: %s" % principal_type)
+        raise BrainyError("invalid principal_type: %s" % principal_type)
     if role not in m.ROLES:
-        raise BrainyError("unbekannte Rolle: %s" % role)
+        raise BrainyError("unknown role: %s" % role)
     now = now_iso()
     try:
         conn.execute(
@@ -28,7 +28,7 @@ def create_principal(conn, principal_type, name, role, active=1, actor="system",
             (ptype, name, role, 1 if active else 0, now, now, dumps(metadata)),
         )
     except sqlite3.IntegrityError:
-        raise BrainyError("principal existiert bereits: %s" % name)
+        raise BrainyError("principal already exists: %s" % name)
     row = conn.execute("SELECT id FROM principals WHERE name=?", (name,)).fetchone()
     audit.log(conn, actor, "principal_created", "principal", row["id"], None,
               {"role": role, "type": ptype})
@@ -51,7 +51,7 @@ def update_principal(conn, actor, principal_id, role=None, active=None, metadata
     if not p:
         raise NotFound("principal %s" % principal_id)
     if role is not None and role not in m.ROLES:
-        raise BrainyError("unbekannte Rolle: %s" % role)
+        raise BrainyError("unknown role: %s" % role)
     sets, args = [], []
     if role is not None:
         sets.append("role=?"); args.append(role)
@@ -88,7 +88,7 @@ def get_space_row(conn, space):
 def _space_id(conn, space):
     sp = get_space_row(conn, space)
     if not sp:
-        raise NotFound("space nicht gefunden: %s" % space)
+        raise NotFound("space not found: %s" % space)
     return sp["id"]
 
 
@@ -96,7 +96,7 @@ def _space_id(conn, space):
 def set_space_acl(conn, admin_id, space, principal_id, actor=None, **caps):
     """Legt/aktualisiert die ACL-Zeile. Nur ADMIN darf ACLs setzen."""
     if not is_admin(conn, admin_id):
-        raise PermissionDenied("nur ADMIN darf ACLs setzen")
+        raise PermissionDenied("only ADMIN may set ACLs")
     sid = _space_id(conn, space)
     principal_id = pid(principal_id)
     existed = conn.execute(
@@ -146,7 +146,7 @@ def list_acl(conn, space):
 
 def remove_acl(conn, admin_id, space, principal_id):
     if not is_admin(conn, admin_id):
-        raise PermissionDenied("nur ADMIN darf ACLs entfernen")
+        raise PermissionDenied("only ADMIN may remove ACLs")
     sid = _space_id(conn, space)
     conn.execute("DELETE FROM space_acl WHERE space_id=? AND principal_id=?",
                  (sid, pid(principal_id)))
@@ -185,4 +185,4 @@ def check_permission(conn, principal_id, space, capability):
 def require(conn, principal_id, space, capability):
     if not check_permission(conn, principal_id, space, capability):
         raise PermissionDenied(
-            "principal %s: '%s' im space %s nicht erlaubt" % (pid(principal_id), capability, space))
+            "principal %s: '%s' not allowed in space %s" % (pid(principal_id), capability, space))

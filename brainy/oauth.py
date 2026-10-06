@@ -70,10 +70,10 @@ def _norm_scope(requested):
 def register_client(conn, client_name, redirect_uris, scope=None, grant_types=None,
                     token_endpoint_auth_method="none", created_via="dcr"):
     if not redirect_uris or not isinstance(redirect_uris, list):
-        raise OAuthError("invalid_redirect_uri", "redirect_uris (Array) erforderlich")
+        raise OAuthError("invalid_redirect_uri", "redirect_uris (array) required")
     for u in redirect_uris:
         if not _valid_redirect(u):
-            raise OAuthError("invalid_redirect_uri", "unsichere/ungueltige redirect_uri")
+            raise OAuthError("invalid_redirect_uri", "insecure/invalid redirect_uri")
     cid = "brainy-client-" + secrets.token_hex(10)
     conn.execute(
         "INSERT INTO oauth_clients(client_id, client_name, redirect_uris, grant_types, "
@@ -138,22 +138,22 @@ def exchange_code(conn, code, client_id, redirect_uri, code_verifier):
     from . import config
     row = conn.execute("SELECT * FROM oauth_auth_codes WHERE code_hash=?", (_h(code or ""),)).fetchone()
     if not row:
-        raise OAuthError("invalid_grant", "unbekannter code")
+        raise OAuthError("invalid_grant", "unknown code")
     r = dict(row)
     if r["used_at"]:
         # Code-Reuse (OAuth 2.1): nur die AUS DIESEM Code abgeleiteten Tokens widerrufen.
         conn.execute("UPDATE oauth_tokens SET revoked_at=? WHERE auth_code_hash=? "
                      "AND revoked_at IS NULL", (now_iso(), _h(code)))
         conn.commit()
-        raise OAuthError("invalid_grant", "code bereits verwendet")
+        raise OAuthError("invalid_grant", "code already used")
     if r["expires_at"] < now_iso():
-        raise OAuthError("invalid_grant", "code abgelaufen")
+        raise OAuthError("invalid_grant", "code expired")
     if r["client_id"] != client_id:
-        raise OAuthError("invalid_grant", "client_id passt nicht")
+        raise OAuthError("invalid_grant", "client_id mismatch")
     if r["redirect_uri"] != redirect_uri:
-        raise OAuthError("invalid_grant", "redirect_uri passt nicht")
+        raise OAuthError("invalid_grant", "redirect_uri mismatch")
     if not verify_pkce(code_verifier, r["code_challenge"], r["code_challenge_method"]):
-        raise OAuthError("invalid_grant", "PKCE-Verifikation fehlgeschlagen")
+        raise OAuthError("invalid_grant", "PKCE verification failed")
     conn.execute("UPDATE oauth_auth_codes SET used_at=? WHERE code_hash=?", (now_iso(), _h(code)))
     ch = _h(code)
     at = _issue_token(conn, "access", client_id, r["principal_id"], r["scope"],
@@ -171,9 +171,9 @@ def refresh_token(conn, refresh_tok, client_id):
     from . import config
     r = _lookup(conn, refresh_tok, "refresh")
     if not r:
-        raise OAuthError("invalid_grant", "refresh token ungueltig/abgelaufen/widerrufen")
+        raise OAuthError("invalid_grant", "refresh token invalid/expired/revoked")
     if r["client_id"] != client_id:
-        raise OAuthError("invalid_grant", "client_id passt nicht")
+        raise OAuthError("invalid_grant", "client_id mismatch")
     at = _issue_token(conn, "access", client_id, r["principal_id"], r["scope"], config.OAUTH_ACCESS_TTL)
     audit.log(conn, r["principal_id"], "oauth_token_issued", "oauth_client", client_id, None,
               {"grant": "refresh_token", "scope": r["scope"]})

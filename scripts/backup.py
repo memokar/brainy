@@ -154,8 +154,8 @@ def _promote_weekly(daily_dir, weekly_dir, prefix, ext, keep=4):
 # --------------------------------------------------------------- Manifest
 def write_manifest(backup_root, db_path, knowledge_root, secrets_dir, db_file, bundle_file):
     """Recovery-Manifest: NUR Namen/Rechte/Groessen, KEINE Secret-Werte."""
-    lines = ["# Brainy Recovery-Manifest (KEINE Secret-Werte)",
-             "# erzeugt: %s" % time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    lines = ["# Brainy recovery manifest (NO secret values)",
+             "# generated: %s" % time.strftime("%Y-%m-%dT%H:%M:%S%z"),
              "",
              "runtime_db_source: %s" % db_path,
              "latest_db_backup: %s" % os.path.basename(db_file),
@@ -163,23 +163,23 @@ def write_manifest(backup_root, db_path, knowledge_root, secrets_dir, db_file, b
              "latest_knowledge_bundle: %s" % os.path.basename(bundle_file),
              "knowledge_head: %s" % knowledge_head(knowledge_root),
              "",
-             "# Secrets (MANUELL aus verschluesseltem Offsite wiederherstellen — NICHT hier gesichert):"]
+             "# Secrets (restore MANUALLY from encrypted offsite storage — NOT backed up here):"]
     if os.path.isdir(secrets_dir):
         for name in sorted(os.listdir(secrets_dir)):
             p = os.path.join(secrets_dir, name)
             if os.path.isfile(p):
                 st = os.stat(p)
-                lines.append("  %s : mode=%o size=%d (Wert NICHT gesichert)"
+                lines.append("  %s : mode=%o size=%d (value NOT backed up)"
                              % (name, st.st_mode & 0o777, st.st_size))
     lines += ["",
-              "# Weitere DR-Artefakte (Betreiber sichert separat):",
+              "# Further DR artifacts (backed up separately by the operator):",
               "  /etc/systemd/system/brainy.service",
               "  /etc/systemd/system/brainy-backup.{service,timer}",
               "  /etc/nginx/sites-available/brainy.example.com",
-              "  /etc/letsencrypt/  (TLS; oder neu via certbot)",
+              "  /etc/letsencrypt/  (TLS; or re-issue via certbot)",
               "",
-              "# WICHTIG: Ein lokales Git-Repo/Backup allein ist KEIN Disaster-Recovery.",
-              "# Das externe/verschluesselte Offsite-Ziel ist noch zu konfigurieren.",
+              "# IMPORTANT: A local git repo/backup alone is NOT disaster recovery.",
+              "# The external/encrypted offsite target still needs to be configured.",
               ""]
     manifest = os.path.join(backup_root, "RECOVERY_MANIFEST.txt")
     tmp = manifest + ".tmp"
@@ -239,7 +239,7 @@ class _Lock:
             fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             os.close(self.fd)
-            raise SystemExit("Backup laeuft bereits (Lock aktiv) -> Abbruch")
+            raise SystemExit("backup already running (lock held) -> aborting")
         return self
 
     def __exit__(self, *a):
@@ -264,7 +264,7 @@ def main(argv):
         with _Lock(os.path.join(backup_root, ".lock")):
             t0 = time.time()
             res = run_backup(config.DB_PATH, config.KNOWLEDGE_ROOT, backup_root)
-            print("backup fertig in %.1fs" % (time.time() - t0))
+            print("backup finished in %.1fs" % (time.time() - t0))
             return 0
     print("usage: backup.py [run|verify <db>]", file=sys.stderr)
     return 2

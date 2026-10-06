@@ -69,14 +69,14 @@ def authenticate_bearer(conn, token):
         audit.log(conn, principal_id, "auth_success", "oauth_token", None, None,
                   {"via": "oauth"}, commit=True)          # KEIN Tokenwert
         return ctx
-    raise AuthFailed("kein gueltiges Bearer-Token")
+    raise AuthFailed("no valid bearer token")
 
 
 # ----- Externe Identitaet (SSO-Anschluss fuer Phase E) -----
 def link_external_identity(conn, admin_id, provider, external_subject, principal_id):
     """Explizites Mapping externer Subject -> Principal. Nur ADMIN. Kein Auto-Anlegen."""
     if not acl.is_admin(conn, admin_id):
-        raise BrainyError("nur ADMIN darf externe Identitaeten verknuepfen")
+        raise BrainyError("only ADMIN may link external identities")
     conn.execute(
         "INSERT OR REPLACE INTO external_identities(provider, external_subject, "
         "principal_id, created_at) VALUES(?, ?, ?, ?)",
@@ -107,7 +107,7 @@ def bootstrap_admin(conn, name="bootstrap-admin", with_token=False):
     with_token=True (Klartext einmalig). Wird NICHT automatisch beim Import ausgefuehrt."""
     n = conn.execute("SELECT COUNT(*) AS c FROM principals").fetchone()["c"]
     if n > 0:
-        raise BrainyError("Principal-Store nicht leer -> Bootstrap verweigert")
+        raise BrainyError("principal store not empty -> bootstrap refused")
     p = acl.create_principal(conn, m.USER, name, m.ADMIN, actor="bootstrap")
     token = None
     if with_token:

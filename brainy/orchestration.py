@@ -74,20 +74,20 @@ def evaluate_policy(requested_mode, risk_level, action_class):
     # Floors bestimmen (sichere Defaults).
     if action is None:
         action_floor = UNKNOWN_ACTION_FLOOR
-        action_reason = "kein action_class -> REVIEW"
+        action_reason = "no action_class -> REVIEW"
     elif action_invalid:
         action_floor = m.EXEC_REVIEW
-        action_reason = "unbekanntes action_class '%s' -> REVIEW" % action
+        action_reason = "unknown action_class '%s' -> REVIEW" % action
     else:
         action_floor = ACTION_FLOOR[action]
-        action_reason = "%s erfordert %s" % (action, action_floor)
+        action_reason = "%s requires %s" % (action, action_floor)
 
     if risk_invalid:
         risk_floor = m.EXEC_REVIEW           # nie AUTO bei unbekanntem Risiko
-        risk_reason = "unbekanntes risk_level '%s' -> REVIEW" % risk
+        risk_reason = "unknown risk_level '%s' -> REVIEW" % risk
     else:
         risk_floor = RISK_FLOOR[risk]
-        risk_reason = "%s-Risiko erfordert %s" % (risk, risk_floor)
+        risk_reason = "%s risk requires %s" % (risk, risk_floor)
 
     # Effective = strengster (hoechster Rang) aus requested + Floors. NIE herabstufen.
     candidates = [("requested", requested, _rank(requested)),
@@ -101,9 +101,9 @@ def evaluate_policy(requested_mode, risk_level, action_class):
     if _rank(effective) > _rank(requested) and drivers:
         rule = "; ".join(action_reason if d[0] == "action" else risk_reason for d in drivers)
     elif _rank(effective) > _rank(requested):
-        rule = "Policy-Floor -> %s" % effective
+        rule = "policy floor -> %s" % effective
     else:
-        rule = "requested %s ausreichend" % requested
+        rule = "requested %s sufficient" % requested
 
     return {
         "requested": requested,

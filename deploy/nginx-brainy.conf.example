@@ -1,13 +1,13 @@
-# Brainy Remote-vHost (Phase F1). Backend bleibt localhost-only (127.0.0.1:8765).
-# TLS/HTTP->HTTPS-Redirect werden von certbot ergaenzt:
+# Brainy reverse-proxy vHost. The backend stays localhost-only (127.0.0.1:8765).
+# TLS and the HTTP->HTTPS redirect are added by certbot:
 #   certbot --nginx -d <hostname> --redirect
 server {
     listen 80;
-    server_name brainy.example.com;   # <- eigenen Hostnamen eintragen
+    server_name brainy.example.com;   # <- your hostname
 
-    client_max_body_size 2M;   # konservativ
+    client_max_body_size 2M;   # conservative
     server_tokens off;
-    autoindex off;             # kein Directory-Listing
+    autoindex off;             # no directory listing
 
     location / {
         proxy_pass http://127.0.0.1:8765;

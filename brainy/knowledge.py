@@ -150,7 +150,7 @@ def get_document(conn, principal_id, path, root=None):
         raise
     sp = paths.space_for_path(rel)
     if not _can_read(conn, principal_id, sp):
-        raise PermissionDenied("kein Leserecht im space %s" % sp)
+        raise PermissionDenied("no read permission in space %s" % sp)
     if not os.path.exists(abs_path):
         raise NotFound(rel)
     with open(abs_path, "r", encoding="utf-8") as fh:
@@ -214,22 +214,22 @@ def write_document(conn, principal_id, path, content, expected_git_commit,
     if not gitops.is_clean(r):
         audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
                   rel, None, {"reason": "repo_not_clean"}, commit=True)
-        raise Conflict("Repo hat uncommittete Aenderungen -> Write abgelehnt")
+        raise Conflict("repo has uncommitted changes -> write rejected")
     # 4) Optimistic Concurrency
     head = gitops.head_commit(r)
     if expected_git_commit and expected_git_commit != head:
         audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
                   rel, None, {"reason": "stale_expected_commit", "head": head}, commit=True)
-        raise Conflict("expected_git_commit veraltet (HEAD=%s)" % head)
+        raise Conflict("expected_git_commit is stale (HEAD=%s)" % head)
     # 5) Secret-Guard
     hit = scan_secrets(content)
     if hit:
         audit.log(conn, principal_id, "knowledge_write_rejected_secret", "knowledge",
                   rel, None, {"pattern": hit}, commit=True)   # KEIN Secret-Wert
-        raise SecretDetected("mutmassliches Secret im Content -> Write abgelehnt")
+        raise SecretDetected("suspected secret in content -> write rejected")
     # 6) validieren (leichtgewichtig: UTF-8, nicht leer)
     if not isinstance(content, str) or content.strip() == "":
-        raise Conflict("leerer/ungueltiger Content")
+        raise Conflict("empty/invalid content")
     # 7) temporaer schreiben + atomar ersetzen
     tmp = abs_path + ".brainy.tmp"
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
@@ -258,7 +258,7 @@ def append_document(conn, principal_id, path, text, expected_git_commit,
     if rel not in ALLOWED_APPEND:
         audit.log(conn, principal_id, "knowledge_write_rejected_path", "knowledge",
                   rel, None, {"reason": "append_not_allowed"}, commit=True)
-        raise PermissionDenied("append nur fuer erlaubte Ziele: %s" % sorted(ALLOWED_APPEND))
+        raise PermissionDenied("append only allowed for targets: %s" % sorted(ALLOWED_APPEND))
     r = _root(root)
     _, abs_path = paths.resolve(rel, root=root)
     current = ""
@@ -297,7 +297,7 @@ def get_document_history(conn, principal_id, path, limit=20, root=None):
     rel, _ = paths.resolve(path, root=root)
     sp = paths.space_for_path(rel)
     if not _can_read(conn, principal_id, sp):
-        raise PermissionDenied("kein Leserecht im space %s" % sp)
+        raise PermissionDenied("no read permission in space %s" % sp)
     return gitops.log_file(_root(root), rel, limit)
 
 
@@ -306,5 +306,5 @@ def get_document_diff(conn, principal_id, path, from_commit, to_commit, root=Non
     rel, _ = paths.resolve(path, root=root)
     sp = paths.space_for_path(rel)
     if not _can_read(conn, principal_id, sp):
-        raise PermissionDenied("kein Leserecht im space %s" % sp)
+        raise PermissionDenied("no read permission in space %s" % sp)
     return gitops.diff_between(_root(root), rel, from_commit, to_commit)

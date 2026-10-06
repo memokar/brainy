@@ -32,8 +32,8 @@ def main():
     backup_root = os.environ.get("BRAINY_BACKUP_ROOT", "/var/backups/brainy")
     db_bak = backup.latest_backup(backup_root, "brainy-", ".db")
     kb_bak = backup.latest_backup(backup_root, "knowledge-", ".bundle")
-    check("Neuestes SQLite-Backup gefunden", bool(db_bak), str(db_bak))
-    check("Neuestes Knowledge-Bundle gefunden", bool(kb_bak), str(kb_bak))
+    check("Latest SQLite backup found", bool(db_bak), str(db_bak))
+    check("Latest knowledge bundle found", bool(kb_bak), str(kb_bak))
     if not (db_bak and kb_bak):
         return 1
 
@@ -46,38 +46,38 @@ def main():
         rconn = db.connect(rdb)
         try:
             mig = rconn.execute("SELECT COUNT(*) c FROM schema_migrations").fetchone()["c"]
-            check("Schema/Migrations vorhanden", mig >= 1, "migrations=%d" % mig)
+            check("Schema/migrations present", mig >= 1, "migrations=%d" % mig)
         except Exception as e:
-            check("Schema/Migrations vorhanden", False, str(e))
+            check("Schema/migrations present", False, str(e))
         # Counts vs. laufende Prod-DB (read-only)
         prod = backup.db_counts(config.DB_PATH)
         rest = backup.db_counts(rdb)
         for key in ("spaces", "principals", "tasks", "audit_events"):
-            check("Restore-Count == Prod (%s)" % key, prod[key] == rest[key],
+            check("Restore count == prod (%s)" % key, prod[key] == rest[key],
                   "prod=%s restore=%s" % (prod[key], rest[key]))
         # Service-Layer-Smoke (Reads) auf Restore-DB
         sp = spaces.list_spaces(rconn)
         tk = tasks.list_tasks(rconn, limit=5)
-        check("Restore-DB Service-Smoke (Spaces lesbar)", len(sp) >= 1, "spaces=%d" % len(sp))
-        check("Restore-DB Service-Smoke (Tasks lesbar)", isinstance(tk, list))
+        check("Restore DB service smoke (spaces readable)", len(sp) >= 1, "spaces=%d" % len(sp))
+        check("Restore DB service smoke (tasks readable)", isinstance(tk, list))
         rconn.close()
 
         # ---- Knowledge Restore ----
         rkb = os.path.join(tmp, "kb")
         head, _ = backup.restore_knowledge_bundle(kb_bak, rkb)   # inkl. git fsck
         prod_head = backup.knowledge_head(config.KNOWLEDGE_ROOT)
-        check("git fsck ok + HEAD == Prod-HEAD", head == prod_head,
+        check("git fsck ok + HEAD == prod HEAD", head == prod_head,
               "restore=%s prod=%s" % (head[:12], prod_head[:12]))
         bm = os.path.join(rkb, "systems", "brainy.md")
-        check("systems/brainy.md im Restore lesbar", os.path.exists(bm))
+        check("systems/brainy.md readable in restore", os.path.exists(bm))
         if os.path.exists(bm):
             with open(bm, encoding="utf-8") as fh:
                 txt = fh.read()
-            check("Such-Smoke (Restore-Knowledge enthaelt 'Brainy')", "Brainy" in txt)
+            check("Search smoke (restored knowledge contains 'Brainy')", "Brainy" in txt)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    print("\nRESTORE-TEST: %s (%d Fehler)" % ("PASS" if _fail[0] == 0 else "FAIL", _fail[0]))
+    print("\nRESTORE-TEST: %s (%d failures)" % ("PASS" if _fail[0] == 0 else "FAIL", _fail[0]))
     return 0 if _fail[0] == 0 else 1
 
 

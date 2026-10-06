@@ -139,7 +139,7 @@ def authorize_and_code(client_id, redirect_uri, scope, challenge, state="st123",
 verifier, challenge = pkce()
 g, p = authorize_and_code(CID, REDIR, "brainy:knowledge:read brainy:knowledge:write "
                           "brainy:tasks:read brainy:tasks:write", challenge)
-check("Consent-GET 200 zeigt Client+Scopes", g[0] == 200 and b"Zulassen" in g[3])
+check("Consent-GET 200 zeigt Client+Scopes", g[0] == 200 and b"Allow" in g[3])
 redir = loc(p)
 check("Consent-POST approve -> 303 redirect mit code+state",
       p[0] == 303 and redir and redir.startswith(REDIR) and "code=" in redir and "state=st123" in redir)

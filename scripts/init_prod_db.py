@@ -17,13 +17,13 @@ def main():
     n = conn.execute("SELECT COUNT(*) AS c FROM principals").fetchone()["c"]
     if n == 0:
         auth.bootstrap_admin(conn, name="bootstrap-admin", with_token=False)  # KEIN Token
-        print("Bootstrap-ADMIN angelegt (ohne Token).")
+        print("Bootstrap ADMIN created (without token).")
     admin = conn.execute("SELECT id FROM principals WHERE role='ADMIN' LIMIT 1").fetchone()
     neu = spaces.seed_defaults(conn, admin["id"])
     ntok = conn.execute("SELECT COUNT(*) AS c FROM service_tokens").fetchone()["c"]
     print("DB:", path, "| schema_version", db.schema_version(conn))
-    print("Default-Spaces angelegt:", neu or "(alle vorhanden)")
-    print("Service-Tokens:", ntok, "(soll 0)")
+    print("Default spaces created:", neu or "(all present)")
+    print("Service tokens:", ntok, "(expected 0 for production init, unless bootstrap.py --with-token was used)")
     conn.close()
 
 

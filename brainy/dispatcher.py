@@ -79,8 +79,8 @@ def _last_failure_reason(conn, task_id, attempts):
         "('FAILED','TIMED_OUT') ORDER BY rowid DESC LIMIT 1", (task_id,)).fetchone()
     detail = ""
     if r:
-        detail = ": %s: %s" % (r["error_code"] or "?", r["error_summary"] or "kein Detail")
-    return ("max_attempts_reached (%d Versuche erschoepft)%s" % (attempts, detail))[:500]
+        detail = ": %s: %s" % (r["error_code"] or "?", r["error_summary"] or "no detail")
+    return ("max_attempts_reached (%d attempts exhausted)%s" % (attempts, detail))[:500]
 
 
 def _active_jobs_for_principal(conn, principal_id):
@@ -195,7 +195,7 @@ def execute_job(conn, job, registry, lease_seconds=DEFAULT_LEASE):
     worker = registry.get(job["worker_type"])
     _set_job(conn, job["job_id"], status="STARTING", started_at=now_iso()); conn.commit()
     if not worker or not getattr(worker, "available", False):
-        return _fail_job(conn, job, "worker_unavailable", "Worker nicht verfuegbar", False)
+        return _fail_job(conn, job, "worker_unavailable", "worker unavailable", False)
     _set_job(conn, job["job_id"], status="RUNNING", heartbeat_at=now_iso(),
              lease_until=iso_plus(lease_seconds)); conn.commit()
     task = tasks.get_task(conn, job["task_id"])
@@ -245,7 +245,7 @@ def _fail_job(conn, job, code, summary, retryable):
     conn.commit()
     attempts = _attempts(conn, job["task_id"])                 # inkl. dieses FAILED
     retry = retryable and code not in _NON_RETRYABLE and attempts < job["max_attempts"]
-    reason = "%s: %s" % (code, summary or "kein Detail")
+    reason = "%s: %s" % (code, summary or "no detail")
     if retry:
         # Retry: Versuchszahl am Task fortschreiben (sichtbar), zurueck in die Queue.
         _reset_task(conn, job["task_id"], m.READY, retry_count=attempts)
@@ -272,7 +272,7 @@ def _reset_task(conn, task_id, status, failure_reason=None, retry_count=None):
     uebergeben — mitgeschrieben, damit die Zahl der Versuche am Task selbst sichtbar ist
     (nicht nur in execution_jobs)."""
     if status == m.BLOCKED and not failure_reason:
-        failure_reason = "BLOCKED ohne uebergebene Diagnose (Fallback) — siehe execution_jobs"
+        failure_reason = "BLOCKED without diagnosis provided (fallback) — see execution_jobs"
     sets = ["status=?", "claimed_by=NULL", "claimed_at=NULL", "lease_until=NULL",
             "claim_token=NULL", "updated_at=?"]
     args = [status, now_iso()]
@@ -303,15 +303,15 @@ def recover_timeouts(conn, lease_grace=0):
     for j in rows:
         j = dict(j)
         _set_job(conn, j["job_id"], status="TIMED_OUT", finished_at=now,
-                 error_code="timeout", error_summary="Lease abgelaufen (kein Heartbeat)")
+                 error_code="timeout", error_summary="lease expired (no heartbeat)")
         conn.commit()
         attempts = _attempts(conn, j["task_id"])
         if attempts < j["max_attempts"]:
             _reset_task(conn, j["task_id"], m.READY, retry_count=attempts)
         else:
             _reset_task(conn, j["task_id"], m.BLOCKED, retry_count=attempts,
-                        failure_reason="timeout: Lease abgelaufen (kein Heartbeat) nach "
-                                       "%d Versuchen" % attempts)
+                        failure_reason="timeout: lease expired (no heartbeat) after "
+                                       "%d attempts" % attempts)
         audit.log(conn, DISPATCH_ACTOR, "job_timed_out", "job", j["job_id"], None,
                   {"task": j["task_id"], "attempt": attempts})
         conn.commit()
@@ -431,7 +431,7 @@ def dispatch_tick(conn, registry=None, lease_seconds=DEFAULT_LEASE,
 # ---------------------------------------------------------------- Controls (ADMIN)
 def _require_admin(conn, actor):
     if not acl.is_admin(conn, pid(actor)):
-        raise PermissionDenied("nur ADMIN darf den Dispatcher steuern")
+        raise PermissionDenied("only ADMIN may control the dispatcher")
 
 
 def pause_dispatcher(conn, actor):
@@ -472,7 +472,7 @@ def run_loop(poll=DEFAULT_POLL):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from . import config, db
     registry = wk.build_default_registry()
-    print("brainy dispatcher gestartet (poll=%ss, default paused via DB-Setting)" % poll,
+    print("brainy dispatcher started (poll=%ss, paused by default via DB setting)" % poll,
           flush=True)
     while True:
         try:

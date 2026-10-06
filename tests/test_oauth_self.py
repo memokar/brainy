@@ -158,7 +158,7 @@ check("alex create_task verboten", err, txt[:200])
 
 # --- Web-Oberflaeche fuer alex gesperrt
 r = app.handle("GET", "/admin/", "", ck(alex["id"]), b"")
-check("Web /admin/ fuer alex nur Info-Seite", r[0] == 200 and b"gesperrt" in r[3])
+check("Web /admin/ fuer alex nur Info-Seite", r[0] == 200 and b"locked" in r[3])
 for pth in ("/admin/knowledge", "/admin/principals", "/admin/tokens", "/admin/audit", "/admin/tasks",
             "/admin/knowledge/view"):
     r = app.handle("GET", pth, "path=systems/geheim.md", ck(alex["id"]), b"")
@@ -168,7 +168,7 @@ r = app.handle("POST", "/admin/knowledge/save", "", ck(alex["id"]),
                                        "content": "x"}).encode())
 check("Web POST fuer alex 403", r[0] == 403)
 r = app.handle("GET", "/admin/", "", ck(plain["id"]), b"")
-check("Web fuer andere Nicht-Admins unveraendert (keine Info-Sperrseite)", b"gesperrt" not in r[3])
+check("Web fuer andere Nicht-Admins unveraendert (keine Info-Sperrseite)", b"locked" not in r[3])
 
 print("\nGESAMT: %d PASS, %d FAIL" % (_ok[0], _fail[0]))
 sys.exit(0 if _fail[0] == 0 else 1)

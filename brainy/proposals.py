@@ -60,15 +60,15 @@ def create_proposal(conn, proposer, path, content, commit_message,
     cap.require(conn, proposer, cap.KNOWLEDGE_READ, sp)
     # 3) Pflichtfelder
     if not isinstance(content, str) or content.strip() == "":
-        raise BrainyError("leerer/ungueltiger content")
+        raise BrainyError("empty/invalid content")
     if not commit_message or not str(commit_message).strip():
-        raise BrainyError("commit_message erforderlich")
+        raise BrainyError("commit_message required")
     # 4) Secret-Guard schon beim Vorschlag -> Secrets landen nie in der DB
     hit = knowledge.scan_secrets(content)
     if hit:
         audit.log(conn, proposer_id, "write_proposal_rejected_secret", "proposal",
                   None, None, {"pattern": hit, "path": rel}, commit=True)   # KEIN Wert
-        raise SecretDetected("mutmassliches Secret im content -> Vorschlag abgelehnt")
+        raise SecretDetected("suspected secret in content -> proposal rejected")
     proposal_id = _gen_id()
     conn.execute(
         "INSERT INTO write_proposals(proposal_id, proposer_id, space, path, content, "
@@ -97,11 +97,11 @@ def apply_proposal(conn, approver, proposal_id, root=None, note=None):
     if p["status"] == STATUS_APPLIED:
         return p
     if p["status"] != STATUS_PENDING:
-        raise InvalidState("proposal %s ist %s (nicht PENDING)" % (proposal_id, p["status"]))
+        raise InvalidState("proposal %s is %s (not PENDING)" % (proposal_id, p["status"]))
     _require_approver(conn, approver, p["space"])
     if approver_id == p["proposer_id"] and not acl.is_admin(conn, approver_id):
-        raise PermissionDenied("Vorschlagender darf nicht selbst freigeben")
-    msg = "%s\n\n[Brainy-Vorschlag %s von %s, freigegeben von %s]" % (
+        raise PermissionDenied("proposer may not approve their own proposal")
+    msg = "%s\n\n[Brainy proposal %s by %s, approved by %s]" % (
         p["commit_message"], proposal_id, _name(conn, p["proposer_id"]),
         _name(conn, approver_id))
     try:
@@ -134,7 +134,7 @@ def reject_proposal(conn, approver, proposal_id, note=None):
     if p["status"] == STATUS_REJECTED:
         return p
     if p["status"] != STATUS_PENDING:
-        raise InvalidState("proposal %s ist %s (nicht PENDING)" % (proposal_id, p["status"]))
+        raise InvalidState("proposal %s is %s (not PENDING)" % (proposal_id, p["status"]))
     _require_approver(conn, approver, p["space"])
     conn.execute("UPDATE write_proposals SET status=?, decided_by=?, decided_at=?, "
                  "decision_note=? WHERE proposal_id=?",

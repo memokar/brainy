@@ -40,23 +40,23 @@ def normalize_rel(path):
     """Nimmt einen relativen Knowledge-Pfad entgegen und gibt ihn normalisiert
     zurueck ODER wirft PathNotAllowed. KEIN Zugriff aufs Dateisystem hier."""
     if path is None:
-        raise PathNotAllowed("leerer Pfad")
+        raise PathNotAllowed("empty path")
     p = str(path).replace("\\", "/").strip()
     if p == "":
-        raise PathNotAllowed("leerer Pfad")
+        raise PathNotAllowed("empty path")
     if os.path.isabs(p) or p.startswith("~"):
-        raise PathNotAllowed("absolute/fremde Pfade verboten: %s" % path)
+        raise PathNotAllowed("absolute/foreign paths forbidden: %s" % path)
     parts = [seg for seg in p.split("/") if seg != ""]
     for seg in parts:
         if _bad_component(seg):
-            raise PathNotAllowed("verbotenes Pfad-Segment: %s" % seg)
+            raise PathNotAllowed("forbidden path segment: %s" % seg)
     rel = "/".join(parts)
     # erlaubte Bereiche
     if rel in ALLOWED_ROOT_FILES:
         return rel
     top = parts[0]
     if top not in ALLOWED_TOP:
-        raise PathNotAllowed("Bereich nicht erlaubt: %s" % top)
+        raise PathNotAllowed("area not allowed: %s" % top)
     return rel
 
 
@@ -65,12 +65,12 @@ def resolve(path, root=None, require_md=True):
     Gibt (rel, abs_path) zurueck. Wirft PathNotAllowed bei Verstoss."""
     rel = normalize_rel(path)
     if require_md and not rel.endswith(".md"):
-        raise PathNotAllowed("nur .md-Dokumente erlaubt: %s" % rel)
+        raise PathNotAllowed("only .md documents allowed: %s" % rel)
     r = knowledge_root(root)
     abs_path = os.path.realpath(os.path.join(r, rel))
     # Symlink-/Traversal-Escape: aufgeloester Pfad MUSS unter root liegen
     if abs_path != r and not abs_path.startswith(r + os.sep):
-        raise PathNotAllowed("Pfad verlaesst den Knowledge-Root (Symlink/Escape)")
+        raise PathNotAllowed("path leaves the knowledge root (symlink/escape)")
     # Nach Aufloesung erneut Bereich pruefen (Symlink koennte in .git/ zeigen)
     rel_after = os.path.relpath(abs_path, r).replace("\\", "/")
     if rel_after != rel:

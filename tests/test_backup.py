@@ -107,7 +107,7 @@ check("Weekly-Promotion erzeugt Weekly-Kopie",
 with open(res["manifest"]) as fh:
     man = fh.read()
 check("Manifest ohne Secret-Werte + DR-Hinweis",
-      "Wert NICHT gesichert" in man or "KEINE Secret" in man)
+      "value NOT backed up" in man or "NO secret values" in man)
 
 print("\nGESAMT: %d PASS, %d FAIL" % (_ok[0], _fail[0]))
 sys.exit(0 if _fail[0] == 0 else 1)

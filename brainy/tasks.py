@@ -47,7 +47,7 @@ def list_tasks(conn, space=None, status=None, type=None, assigned_to=None,
     if space is not None:
         sid = spaces.get_space(conn, space)
         if not sid:
-            raise NotFound("space nicht gefunden: %s" % space)
+            raise NotFound("space not found: %s" % space)
         sql += " AND space_id=?"; args.append(sid["id"])
     if status:
         sql += " AND status=?"; args.append(status)
@@ -91,14 +91,14 @@ def create_task(conn, principal_id, space, title, type="chore", priority="P3",
     principal_id = pid(principal_id)
     sp = spaces.get_space(conn, space)
     if not sp:
-        raise NotFound("space nicht gefunden: %s" % space)
+        raise NotFound("space not found: %s" % space)
     acl.require(conn, principal_id, sp["id"], m.CAP_CREATE_TASKS)
     if status not in (m.OPEN, m.READY):
-        raise InvalidState("neuer Task muss OPEN oder READY sein")
+        raise InvalidState("new task must be OPEN or READY")
     if type not in m.TASK_TYPES:
-        raise InvalidState("unbekannter type: %s" % type)
+        raise InvalidState("unknown type: %s" % type)
     if priority not in m.PRIORITIES:
-        raise InvalidState("unbekannte priority: %s" % priority)
+        raise InvalidState("unknown priority: %s" % priority)
 
     # --- Governance-Policy zentral bewerten (kanonische Schicht) ---
     pol = orch.evaluate_policy(execution_mode or m.DEFAULT_EXECUTION_MODE,
@@ -108,7 +108,7 @@ def create_task(conn, principal_id, space, title, type="chore", priority="P3",
         pp = acl.get_principal(conn, pid(preferred_agent)) if str(preferred_agent).isdigit() \
             else _principal_by_name(conn, preferred_agent)
         if not pp:
-            raise NotFound("preferred_agent nicht gefunden: %s" % preferred_agent)
+            raise NotFound("preferred_agent not found: %s" % preferred_agent)
         pref = str(pp["id"])
     reqcaps = list(required_capabilities or [])
 
@@ -219,9 +219,9 @@ def set_status(conn, principal_id, task_id, new_status):
     acl.require(conn, principal_id, task["space_id"], m.CAP_CREATE_TASKS)
     cur = task["status"]
     if new_status in m.ENGINE_ONLY:
-        raise InvalidState("Status %s nur ueber claim/complete/fail setzbar" % new_status)
+        raise InvalidState("status %s can only be set via claim/complete/fail" % new_status)
     if new_status not in m.VALID_TRANSITIONS.get(cur, set()):
-        raise InvalidState("Uebergang %s -> %s nicht erlaubt" % (cur, new_status))
+        raise InvalidState("transition %s -> %s not allowed" % (cur, new_status))
     conn.execute("UPDATE tasks SET status=?, updated_at=? WHERE task_id=?",
                  (new_status, now_iso(), task_id))
     action = "task_ready" if new_status == m.READY else (
@@ -251,12 +251,12 @@ def claim_task(conn, principal_id, task_id, lease_seconds=DEFAULT_LEASE_SECONDS)
             # Diagnose-Pflicht: BLOCKED nie ohne failure_reason (kein stiller Verlust).
             conn.execute("UPDATE tasks SET status='BLOCKED', failure_reason=?, updated_at=? "
                          "WHERE task_id=?",
-                         ("dependency_broken: Voraussetzungen nicht erfuellbar", now_iso(),
+                         ("dependency_broken: dependencies cannot be satisfied", now_iso(),
                           task_id))
             audit.log(conn, principal_id, "dependency_blocked", "task", task_id,
                       task["space_id"], {"reason": "dependency_broken"})
             conn.commit()
-        raise ClaimConflict("Dependencies nicht erfuellt (%s) fuer %s" % (dep, task_id))
+        raise ClaimConflict("dependencies not satisfied (%s) for %s" % (dep, task_id))
     now = now_iso()
     lease_until = iso_plus(lease_seconds)
     token = secrets.token_hex(16)
@@ -271,7 +271,7 @@ def claim_task(conn, principal_id, task_id, lease_seconds=DEFAULT_LEASE_SECONDS)
     )
     if cur.rowcount != 1:
         conn.rollback()
-        raise ClaimConflict("Task %s ist nicht claimbar (Status %s)" % (task_id, task["status"]))
+        raise ClaimConflict("task %s is not claimable (status %s)" % (task_id, task["status"]))
     audit.log(conn, principal_id, "task_claimed", "task", task_id, task["space_id"],
               {"lease_until": lease_until})
     conn.commit()
@@ -289,7 +289,7 @@ def start_progress(conn, principal_id, task_id, claim_token):
     )
     if cur.rowcount != 1:
         conn.rollback()
-        raise StaleToken("kein gueltiger aktiver Claim fuer %s" % task_id)
+        raise StaleToken("no valid active claim for %s" % task_id)
     task = _row(conn, task_id)
     audit.log(conn, principal_id, "task_in_progress", "task", task_id, task["space_id"])
     conn.commit()
@@ -309,7 +309,7 @@ def renew_claim(conn, principal_id, task_id, claim_token, lease_seconds=DEFAULT_
     )
     if cur.rowcount != 1:
         conn.rollback()
-        raise StaleToken("renew abgelehnt (stale/abgelaufen/kein Owner) fuer %s" % task_id)
+        raise StaleToken("renew rejected (stale/expired/not owner) for %s" % task_id)
     task = _row(conn, task_id)
     audit.log(conn, principal_id, "task_claim_renewed", "task", task_id, task["space_id"],
               {"lease_until": lease_until})
@@ -329,7 +329,7 @@ def release_task(conn, principal_id, task_id, claim_token):
     )
     if cur.rowcount != 1:
         conn.rollback()
-        raise StaleToken("release abgelehnt (kein aktueller Claim) fuer %s" % task_id)
+        raise StaleToken("release rejected (no current claim) for %s" % task_id)
     task = _row(conn, task_id)
     audit.log(conn, principal_id, "task_released", "task", task_id, task["space_id"])
     conn.commit()
@@ -370,7 +370,7 @@ def complete_task(conn, principal_id, task_id, claim_token, result=None, result_
                 and task["claimed_by"] == str(principal_id):
             return get_task(conn, task_id)
     if task["status"] == m.COMPLETED and target != m.COMPLETED:
-        raise StaleToken("Task bereits abgeschlossen")
+        raise StaleToken("task already completed")
 
     now = now_iso()
     refs = dumps(result_refs if result_refs is not None else [])
@@ -389,7 +389,7 @@ def complete_task(conn, principal_id, task_id, claim_token, result=None, result_
             (target, result, refs, now, task_id, str(principal_id), claim_token))
     if cur.rowcount != 1:
         conn.rollback()
-        raise StaleToken("complete abgelehnt (stale/kein aktiver Claim) fuer %s" % task_id)
+        raise StaleToken("complete rejected (stale/no active claim) for %s" % task_id)
     if target == m.COMPLETED:
         audit.log(conn, principal_id, "task_completed", "task", task_id, task["space_id"])
         _refresh_dependents(conn, principal_id, task_id)
@@ -411,7 +411,7 @@ def _actor_is_admin(conn, principal_id):
 def _no_self_gate(conn, task, principal_id):
     """Der ausfuehrende Agent/Owner darf sich nicht selbst freigeben (ausser ADMIN)."""
     if task["claimed_by"] == str(principal_id) and not _actor_is_admin(conn, principal_id):
-        raise PermissionDenied("Selbstfreigabe des ausfuehrenden Principals nicht erlaubt")
+        raise PermissionDenied("self-approval by the executing principal not allowed")
 
 
 def review_task(conn, principal_id, task_id, decision, note=None, rework=False):
@@ -426,7 +426,7 @@ def review_task(conn, principal_id, task_id, decision, note=None, rework=False):
     _no_self_gate(conn, task, principal_id)
     decision = str(decision).lower()
     if decision not in ("accept", "reject"):
-        raise InvalidState("decision muss accept|reject sein")
+        raise InvalidState("decision must be accept|reject")
     # Idempotenz
     if decision == "accept" and task["status"] == m.COMPLETED \
             and task["reviewed_by"] == str(principal_id):
@@ -435,7 +435,7 @@ def review_task(conn, principal_id, task_id, decision, note=None, rework=False):
             and task["reviewed_by"] == str(principal_id):
         return get_task(conn, task_id)
     if task["status"] != m.AWAITING_REVIEW:
-        raise InvalidState("Task nicht im Review-Gate (Status %s)" % task["status"])
+        raise InvalidState("task not at review gate (status %s)" % task["status"])
     now = now_iso()
     if decision == "accept":
         conn.execute("UPDATE tasks SET status='COMPLETED', completed_at=?, reviewed_by=?, "
@@ -470,7 +470,7 @@ def approve_task(conn, principal_id, task_id, note=None):
     if task["status"] == m.APPROVED and task["approved_by"] == str(principal_id):
         return get_task(conn, task_id)
     if task["status"] != m.AWAITING_APPROVAL:
-        raise InvalidState("Task nicht im Approval-Gate (Status %s)" % task["status"])
+        raise InvalidState("task not at approval gate (status %s)" % task["status"])
     now = now_iso()
     conn.execute("UPDATE tasks SET status='APPROVED', approved_by=?, approved_at=?, "
                  "approval_note=?, updated_at=? WHERE task_id=?",
@@ -493,7 +493,7 @@ def reject_task(conn, principal_id, task_id, note=None):
     if task["status"] == m.REJECTED and task["approved_by"] == str(principal_id):
         return get_task(conn, task_id)
     if task["status"] != m.AWAITING_APPROVAL:
-        raise InvalidState("Task nicht im Approval-Gate (Status %s)" % task["status"])
+        raise InvalidState("task not at approval gate (status %s)" % task["status"])
     now = now_iso()
     conn.execute("UPDATE tasks SET status='REJECTED', approved_by=?, approved_at=?, "
                  "approval_note=?, updated_at=? WHERE task_id=?",
@@ -548,7 +548,7 @@ def fail_task(conn, principal_id, task_id, claim_token, reason=""):
     if task["status"] == m.FAILED:
         if task["claim_token"] == claim_token:
             return get_task(conn, task_id)      # idempotent
-        raise StaleToken("bereits mit anderem Claim fehlgeschlagen")
+        raise StaleToken("already failed with a different claim")
     now = now_iso()
     cur = conn.execute(
         "UPDATE tasks SET status='FAILED', failure_reason=?, retry_count=retry_count+1, "
@@ -559,7 +559,7 @@ def fail_task(conn, principal_id, task_id, claim_token, reason=""):
     )
     if cur.rowcount != 1:
         conn.rollback()
-        raise StaleToken("fail abgelehnt (stale/kein aktiver Claim) fuer %s" % task_id)
+        raise StaleToken("fail rejected (stale/no active claim) for %s" % task_id)
     audit.log(conn, principal_id, "task_failed", "task", task_id, task["space_id"],
               {"reason": str(reason)[:200]})
     _refresh_dependents(conn, principal_id, task_id)

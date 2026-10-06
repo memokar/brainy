@@ -77,7 +77,7 @@ def check(conn, principal, capability, space=None):
 def require(conn, principal, capability, space=None):
     if not check(conn, principal, capability, space):
         raise PermissionDenied(
-            "principal %s: capability '%s' (space=%s) nicht erlaubt"
+            "principal %s: capability '%s' (space=%s) not allowed"
             % (pid(principal), capability, space))
 
 

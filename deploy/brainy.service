@@ -1,5 +1,5 @@
 [Unit]
-Description=Brainy MCP service (localhost-only, Phase D)
+Description=Brainy MCP service (localhost-only)
 After=network.target
 
 [Service]

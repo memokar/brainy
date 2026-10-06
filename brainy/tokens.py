@@ -29,7 +29,7 @@ def create_service_token(conn, principal_id, description="", ttl_seconds=None,
     if not p:
         raise NotFound("principal %s" % principal_id)
     if not p["active"]:
-        raise BrainyError("principal inaktiv -> kein Token")
+        raise BrainyError("principal inactive -> no token")
     token_id = "%s_%s" % (TOKEN_PREFIX, secrets.token_hex(6))
     secret = secrets.token_urlsafe(32)
     now = now_iso()

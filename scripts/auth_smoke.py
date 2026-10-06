@@ -21,10 +21,10 @@ def main():
         agent = acl.create_principal(conn, "AGENT", "smoke-agent", m.AGENT)
         acl.grant_permission(conn, admin["id"], "A", agent["id"],
                              can_read=1, can_claim_tasks=1, can_complete_tasks=1)
-        print("1) admin + agent + space A/B angelegt")
+        print("1) admin + agent + space A/B created")
 
         tk = tokens.create_service_token(conn, agent["id"], description="smoke")
-        print("2) Token erzeugt (token_id", tk["token_id"], ") — Klartext einmalig")
+        print("2) token created (token_id", tk["token_id"], ") — plaintext shown once")
         ctx = auth.authenticate_token(conn, tk["token"])
         print("3) auth ok -> principal", ctx.principal_id, "role", ctx.role,
               "allowed_spaces", ctx.allowed_spaces, "auth_method", ctx.auth_method)
@@ -34,14 +34,14 @@ def main():
 
         tokens.revoke_service_token(conn, tk["token_id"])
         try:
-            auth.authenticate_token(conn, tk["token"]); print("5) FEHLER: revoked akzeptiert")
+            auth.authenticate_token(conn, tk["token"]); print("5) ERROR: revoked token accepted")
         except Exception as e:
-            print("5) revoked Token abgelehnt:", type(e).__name__)
+            print("5) revoked token rejected:", type(e).__name__)
 
         acts = [e["action"] for e in audit.list_events(conn, limit=50)]
-        print("6) Audit-Events:", sorted(set(acts)))
+        print("6) audit events:", sorted(set(acts)))
         conn.close()
-        print("SMOKE OK — Temp geloescht, kein Netzdienst")
+        print("SMOKE OK — temp data deleted, no network service")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

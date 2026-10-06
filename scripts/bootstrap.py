@@ -12,7 +12,7 @@ from brainy import auth, db  # noqa: E402
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     if not args:
-        print("Nutzung: bootstrap.py <DB_PFAD> [--name NAME] [--with-token]")
+        print("Usage: bootstrap.py <DB_PATH> [--name NAME] [--with-token]")
         sys.exit(2)
     path = args[0]
     name = "bootstrap-admin"
@@ -21,11 +21,11 @@ def main():
     with_token = "--with-token" in sys.argv
     conn = db.init_db(path)
     res = auth.bootstrap_admin(conn, name=name, with_token=with_token)
-    print("ADMIN angelegt: principal_id", res["principal_id"], "name", res["name"])
+    print("ADMIN created: principal_id", res["principal_id"], "name", res["name"])
     if res["token"]:
-        print("SERVICE-TOKEN (EINMALIG, sicher speichern):", res["token"])
+        print("SERVICE-TOKEN (shown ONCE, store it securely):", res["token"])
     else:
-        print("Kein Token erzeugt (--with-token nicht gesetzt).")
+        print("No token created (--with-token not set).")
     conn.close()
 
 
