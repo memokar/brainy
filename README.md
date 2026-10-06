@@ -44,6 +44,15 @@ so your AIs can hand work to each other instead of living in separate chat silos
 
 ## Quickstart (Docker)
 
+Prebuilt image (published on every release):
+
+```bash
+docker run -d --name brainy -p 127.0.0.1:8765:8765 -v brainy-data:/data ghcr.io/memokar/brainy:latest
+docker logs brainy   # prints your one-time ADMIN token on first start
+```
+
+Or build it yourself with Compose:
+
 ```bash
 git clone https://github.com/memokar/brainy.git
 cd brainy
@@ -51,9 +60,9 @@ docker compose up -d
 docker compose logs brainy   # prints your one-time ADMIN token on first start
 ```
 
-Brainy now listens on `http://127.0.0.1:8765` (MCP endpoint: `/mcp`, admin UI: `/admin`).
-For remote AI connectors put it behind HTTPS (see `deploy/nginx-brainy.conf.example`) and set
-`BRAINY_PUBLIC_BASE_URL`.
+Brainy now listens on `http://127.0.0.1:8765` (MCP endpoint: `/mcp`, admin UI: `/admin` — log in
+with the token). For remote AI connectors put it behind HTTPS (see
+`deploy/nginx-brainy.conf.example`) and set `BRAINY_PUBLIC_BASE_URL`.
 
 ## Quickstart (bare metal, Linux, Python ≥ 3.10)
 
@@ -73,10 +82,17 @@ python3 scripts/serve.py
 
 ## Connecting an AI
 
-- **Claude Code / any MCP client with headers:** point it at `https://<your-host>/mcp` with
+- **Claude Code:**
+  ```bash
+  claude mcp add --transport http brainy http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"
+  ```
+- **Any other MCP client with custom headers:** endpoint `https://<your-host>/mcp`, header
   `Authorization: Bearer <service token>`.
 - **Claude.ai / ChatGPT remote connectors:** use the OAuth 2.1 flow (discovery at
   `/.well-known/oauth-authorization-server`). Set `BRAINY_PUBLIC_BASE_URL` to your HTTPS URL.
+
+Brainy is listed in the [official MCP Registry](https://registry.modelcontextprotocol.io) as
+`io.github.memokar/brainy`.
 
 Give each AI its own principal (e.g. `claude`, `chatgpt`) with role `AGENT` and only the spaces it
 needs. Every action then shows up in the audit log under that name.

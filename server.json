@@ -1,0 +1,37 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.memokar/brainy",
+  "title": "Brainy",
+  "description": "Shared knowledge base + task queue so Claude, ChatGPT and other agents can work together safely.",
+  "repository": {
+    "url": "https://github.com/memokar/brainy",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/memokar/brainy:0.1.0",
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://localhost:8765/mcp",
+        "headers": [
+          {
+            "name": "Authorization",
+            "description": "Brainy service token (printed once on first container start: docker logs <container>)",
+            "value": "Bearer {brainy_token}",
+            "isRequired": true,
+            "isSecret": true,
+            "variables": {
+              "brainy_token": {
+                "description": "Brainy service token",
+                "isRequired": true,
+                "isSecret": true
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

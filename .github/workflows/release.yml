@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write   # push the image to ghcr.io
+  id-token: write   # GitHub OIDC login for the MCP registry
+
+jobs:
+  image-and-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check that tag, server.json and package version match
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          test "$(jq -r .version server.json)" = "$TAG"
+          test "$(jq -r '.packages[0].identifier' server.json)" = "ghcr.io/memokar/brainy:$TAG"
+          grep -q "__version__ = \"$TAG\"" brainy/__init__.py
+
+      - name: Build and push image to GHCR
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t ghcr.io/memokar/brainy:"$TAG" -t ghcr.io/memokar/brainy:latest .
+          docker push ghcr.io/memokar/brainy:"$TAG"
+          docker push ghcr.io/memokar/brainy:latest
+
+      - name: Publish to the official MCP registry
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

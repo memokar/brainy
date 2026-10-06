@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+LABEL io.modelcontextprotocol.server.name="io.github.memokar/brainy" \
+      org.opencontainers.image.source="https://github.com/memokar/brainy" \
+      org.opencontainers.image.description="Shared knowledge base + task queue for AI agents (MCP)" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
+
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 brainy
