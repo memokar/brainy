@@ -10,6 +10,12 @@ KEIN HTTP/MCP hier. Knowledge-Root zentral in paths.KNOWLEDGE_ROOT.
 """
 import os
 import re
+import threading
+
+try:
+    import fcntl
+except ImportError:  # nicht-POSIX (z. B. Windows-Dev): dann nur In-Process-Lock
+    fcntl = None
 
 from . import acl
 from . import audit
@@ -22,6 +28,62 @@ from .util import now_iso, pid
 
 # Explizit erlaubte Append-Ziele (nicht pauschal jede SoT).
 ALLOWED_APPEND = {"shared/todo.md"}
+
+# ---------------------------------------------------------------------------
+# Schreib-Serialisierung. Der Optimistic-Concurrency-Check liest HEAD und
+# committet danach; ohne Lock ist das eine TOCTOU-Luecke, weil der Brainy-Server
+# multi-threaded ist (ThreadingHTTPServer) und zusaetzlich mehrere Prozesse
+# (stdio-Clients, Backup) auf dasselbe Repo zugreifen koennen. Darum: ein
+# In-Process threading.Lock je Repo-Root PLUS (auf POSIX) ein fcntl.flock auf
+# einer Lock-Datei unter .git/ (liegt nie im Working Tree -> stoert is_clean
+# nicht). Reine Stdlib, keine Fremdabhaengigkeit. Ergebnis: genau ein gleichzeitiger
+# Writer committet, die uebrigen sehen HEAD veraendert und bekommen Conflict.
+_LOCK_GUARD = threading.Lock()
+_LOCKS = {}
+
+
+def _proc_lock(root):
+    key = os.path.abspath(root)
+    with _LOCK_GUARD:
+        lk = _LOCKS.get(key)
+        if lk is None:
+            lk = threading.Lock()
+            _LOCKS[key] = lk
+        return lk
+
+
+class _write_lock:
+    """Exklusiver Schreib-Lock pro Knowledge-Repo (thread- und prozessuebergreifend)."""
+
+    def __init__(self, root):
+        self.root = root
+        self._tl = _proc_lock(root)
+        self._fd = None
+
+    def __enter__(self):
+        self._tl.acquire()
+        if fcntl is not None:
+            try:
+                p = os.path.join(self.root, ".git", "brainy-write.lock")
+                self._fd = os.open(p, os.O_CREAT | os.O_RDWR, 0o600)
+                fcntl.flock(self._fd, fcntl.LOCK_EX)
+            except OSError:
+                if self._fd is not None:
+                    os.close(self._fd)
+                    self._fd = None
+        return self
+
+    def __exit__(self, *exc):
+        try:
+            if self._fd is not None:
+                try:
+                    fcntl.flock(self._fd, fcntl.LOCK_UN)
+                finally:
+                    os.close(self._fd)
+                    self._fd = None
+        finally:
+            self._tl.release()
+        return False
 
 # Secret-Guard: mutmassliche echte Geheimniswerte. Bewusst NICHT jedes Vorkommen
 # des Wortes "token" — nur Muster mit tatsaechlichem Wert.
@@ -210,45 +272,48 @@ def write_document(conn, principal_id, path, content, expected_git_commit,
     acl.require(conn, principal_id, sp, m.CAP_WRITE)
     audit.log(conn, principal_id, "knowledge_write_started", "knowledge", rel, None,
               {"space": sp}, commit=True)
-    # 3) Repo muss clean sein (keine fremden uncommitted Aenderungen ueberschreiben)
-    if not gitops.is_clean(r):
-        audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
-                  rel, None, {"reason": "repo_not_clean"}, commit=True)
-        raise Conflict("repo has uncommitted changes -> write rejected")
-    # 4) Optimistic Concurrency
-    head = gitops.head_commit(r)
-    if expected_git_commit and expected_git_commit != head:
-        audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
-                  rel, None, {"reason": "stale_expected_commit", "head": head}, commit=True)
-        raise Conflict("expected_git_commit is stale (HEAD=%s)" % head)
-    # 5) Secret-Guard
-    hit = scan_secrets(content)
-    if hit:
-        audit.log(conn, principal_id, "knowledge_write_rejected_secret", "knowledge",
-                  rel, None, {"pattern": hit}, commit=True)   # KEIN Secret-Wert
-        raise SecretDetected("suspected secret in content -> write rejected")
-    # 6) validieren (leichtgewichtig: UTF-8, nicht leer)
-    if not isinstance(content, str) or content.strip() == "":
-        raise Conflict("empty/invalid content")
-    # 7) temporaer schreiben + atomar ersetzen
-    tmp = abs_path + ".brainy.tmp"
-    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-    with open(tmp, "w", encoding="utf-8") as fh:
-        fh.write(content)
-    os.replace(tmp, abs_path)
-    # 8) NUR Ziel-Datei stagen + committen; bei Fehler Rollback
-    try:
-        gitops.add_path(r, rel)
-        commit = gitops.commit_path(r, rel, commit_message,
-                                    author_name=_actor_name(conn, principal_id))
-    except Exception as e:
-        gitops.restore_to_head(r, rel)   # Datei + Index sauber zuruecksetzen
-        audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
-                  rel, None, {"reason": "commit_failed", "err": str(e)[:120]}, commit=True)
-        raise
-    audit.log(conn, principal_id, "knowledge_write_committed", "knowledge", rel, None,
-              {"commit": commit}, commit=True)
-    return {"path": rel, "commit": commit}
+    # 3)-8) unter exklusivem Schreib-Lock: HEAD-Pruefung und Commit muessen
+    # atomar gegenueber anderen Writern sein (sonst TOCTOU-Race am Git-Layer).
+    with _write_lock(r):
+        # 3) Repo muss clean sein (keine fremden uncommitted Aenderungen ueberschreiben)
+        if not gitops.is_clean(r):
+            audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
+                      rel, None, {"reason": "repo_not_clean"}, commit=True)
+            raise Conflict("repo has uncommitted changes -> write rejected")
+        # 4) Optimistic Concurrency
+        head = gitops.head_commit(r)
+        if expected_git_commit and expected_git_commit != head:
+            audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
+                      rel, None, {"reason": "stale_expected_commit", "head": head}, commit=True)
+            raise Conflict("expected_git_commit is stale (HEAD=%s)" % head)
+        # 5) Secret-Guard
+        hit = scan_secrets(content)
+        if hit:
+            audit.log(conn, principal_id, "knowledge_write_rejected_secret", "knowledge",
+                      rel, None, {"pattern": hit}, commit=True)   # KEIN Secret-Wert
+            raise SecretDetected("suspected secret in content -> write rejected")
+        # 6) validieren (leichtgewichtig: UTF-8, nicht leer)
+        if not isinstance(content, str) or content.strip() == "":
+            raise Conflict("empty/invalid content")
+        # 7) temporaer schreiben + atomar ersetzen
+        tmp = abs_path + ".brainy.tmp"
+        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        os.replace(tmp, abs_path)
+        # 8) NUR Ziel-Datei stagen + committen; bei Fehler Rollback
+        try:
+            gitops.add_path(r, rel)
+            commit = gitops.commit_path(r, rel, commit_message,
+                                        author_name=_actor_name(conn, principal_id))
+        except Exception as e:
+            gitops.restore_to_head(r, rel)   # Datei + Index sauber zuruecksetzen
+            audit.log(conn, principal_id, "knowledge_write_rejected_conflict", "knowledge",
+                      rel, None, {"reason": "commit_failed", "err": str(e)[:120]}, commit=True)
+            raise
+        audit.log(conn, principal_id, "knowledge_write_committed", "knowledge", rel, None,
+                  {"commit": commit}, commit=True)
+        return {"path": rel, "commit": commit}
 
 
 def append_document(conn, principal_id, path, text, expected_git_commit,

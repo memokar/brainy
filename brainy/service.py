@@ -49,6 +49,12 @@ MCP_INSTRUCTIONS = (
     "or explicitly mark it as 'unconfirmed / to be verified'.\n"
     "TRANSPARENCY: After saving automatically, BRIEFLY report what was changed and in which Brainy "
     "path/space (no long change report). Details: shared/conventions.md.\n"
+    "TASK CLAIMS: When multiple agents share Brainy, claim a task (claim_task) BEFORE working on it "
+    "and work ONLY on tasks you hold a current claim/lease on. Do NOT touch a task that another actor "
+    "has claimed while its lease is still valid - pick a different one; that is how agents avoid doing "
+    "the same work twice. Renew long-running work (renew_claim) and release it (release_task) if you "
+    "stop. Knowledge writes use optimistic concurrency (expected_git_commit): on a Conflict, re-read "
+    "the current document and retry - never force-overwrite.\n"
     "Security: ACL/governance/secret guard/path allowlist are enforced server-side; no shell/FS/SQL."
 )
 

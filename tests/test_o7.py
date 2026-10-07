@@ -40,7 +40,7 @@ def mini_kb():
 # ===== 1. Instructions-Policy wird ueber MCP initialize ausgeliefert =====
 INS = service.MCP_INSTRUCTIONS
 for marker in ("BRAINY-FIRST", "AUTO-CAPTURE", "DO NOT save automatically", "TRANSPARENCY",
-               "secrets/tokens", "HYPOTHETICAL",
+               "TASK CLAIMS", "secrets/tokens", "HYPOTHETICAL",
                "conventions.md", "Single Source of Truth"):
     check("Instructions enthaelt: %s" % marker, marker in INS)
 

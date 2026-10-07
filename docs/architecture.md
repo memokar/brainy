@@ -51,8 +51,25 @@ Effective rights = role ∩ space ACL.
 - Path allowlist: only the five areas + `README.md`, only `.md`; no `..`, hidden files, backups,
   `.git` or symlink escapes.
 - Optimistic concurrency: writes carry `expected_git_commit`; stale writes are rejected.
+- Serialized commits: the HEAD check and the commit run under a per-repo write lock
+  (in-process `threading.Lock` + a POSIX `fcntl.flock` on `.git/brainy-write.lock`, so the lock
+  covers both the multi-threaded server and separate processes such as stdio clients). This closes
+  the TOCTOU gap between reading HEAD and committing — without it, `ThreadingHTTPServer` could run
+  two writers in parallel and let both commit.
 - Secret detection rejects content that looks like keys or tokens.
 - `propose_write` creates a pending proposal that a human approves (web UI or Telegram).
+
+## Concurrency guarantees (tested)
+
+`tests/test_concurrency.py` exercises both races with 20 threads (each its own DB connection,
+released together on a barrier):
+
+- **Task claims:** 20 agents claim the same task → exactly **1 winner, 19 `ClaimConflict`**
+  (single atomic `UPDATE ... WHERE status='READY'`).
+- **Knowledge writes:** 20 agents write the same file with the same `expected_git_commit` → exactly
+  **1 commit, 19 `Conflict`**; the Git history gains exactly one commit and the repo stays clean.
+- **Independent writes:** 20 agents writing *different* files all succeed — the lock serializes
+  commits without false conflicts or deadlock.
 
 ## Backup & restore
 

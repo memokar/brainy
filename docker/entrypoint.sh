@@ -2,6 +2,13 @@
 # First start: create the knowledge Git repo, the database and a one-time ADMIN token.
 set -eu
 
+# One-command demo, no clone, no setup: `docker run --rm -i ghcr.io/memokar/brainy:latest --demo`
+# Runs the stdio MCP server against a throwaway DB + example knowledge in a temp dir
+# (deleted on exit). Nothing is written to the /data volume. Default (no args) is unchanged.
+if [ "${1:-}" = "--demo" ]; then
+    exec python3 /app/scripts/stdio.py --demo
+fi
+
 if [ ! -d "$BRAINY_KNOWLEDGE_ROOT/.git" ]; then
     mkdir -p "$BRAINY_KNOWLEDGE_ROOT"
     cp -r /app/examples/knowledge/. "$BRAINY_KNOWLEDGE_ROOT/"

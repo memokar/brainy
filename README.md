@@ -33,6 +33,56 @@ so your AIs can hand work to each other instead of living in separate chat silos
   (web UI or Telegram). Tasks can require review/approval before they count as done.
 - **Zero dependencies.** Pure Python standard library + SQLite. No pip install, tiny attack surface.
 
+## Why not just a markdown file?
+
+A shared notes file in a Git repo is a great *knowledge* store — and Brainy keeps that part on
+purpose: knowledge is plain Markdown in Git, with history, diff and rollback. The problem is
+everything a bare file *doesn't* do once more than one agent touches it:
+
+- **Two agents overwrite each other.** Nothing serializes concurrent writes to the same file.
+  Brainy writes go through optimistic concurrency (`expected_git_commit`) plus a server-side write
+  lock: exactly one writer commits, the others get a `Conflict` and re-read — no lost edits.
+- **No task hand-off.** A file can list TODOs, but it can't stop two agents from grabbing the same
+  one. Brainy tasks use an **atomic claim** (`UPDATE ... WHERE status='READY'`, one row): exactly
+  one agent wins, the rest get a conflict and move on.
+- **No per-area permissions.** A file is all-or-nothing. Brainy has Spaces with per-space ACLs, so
+  an agent only reads/writes the areas you grant it.
+- **No approval step.** Agents can *propose* changes for a human to approve (web UI or Telegram)
+  instead of writing straight to the source of truth.
+- **"Who changed what?" beyond `git blame`.** Every action — reads of task state, claims, writes,
+  rejections — lands in an append-only audit log enforced by a DB trigger.
+
+Both guarantees above are covered by a concurrency test
+([`tests/test_concurrency.py`](tests/test_concurrency.py)): 20 threads racing on one task yield
+exactly **1 winner and 19 conflicts**, and 20 threads writing the same file yield exactly **1
+commit and 19 conflicts**, with the repo left clean.
+
+## How is Brainy different?
+
+Honest comparison with the tools people mention most. Beads is closest to Brainy's *task* side, and
+Central Brain to its *knowledge* side; neither is a one-to-one match. Facts are from each project's
+own docs (links below); where something isn't documented, it says so rather than guessing.
+
+| | **Brainy** | **Beads** [^beads] | **Central Brain** [^cb] | **Shared notes file** |
+|---|---|---|---|---|
+| What it is | Knowledge base **+** task queue | AI-agent issue/task tracker | AI memory layer | Markdown in a repo |
+| Knowledge store | Markdown in Git | — (issue tracker) | Plain files + local vector index | Markdown in Git |
+| Task queue with atomic claims | ✅ | ✅ | not documented | ❌ |
+| Per-area permissions (ACL) | ✅ Spaces/roles | ❌ | ❌ | ❌ |
+| Append-only audit log | ✅ (DB-enforced) | partial (Git/DB history) | ❌ | `git blame` only |
+| Human approval for writes | ✅ (web/Telegram) | ❌ | ❌ | ❌ |
+| MCP server | ✅ | ✅ | ✅ | ❌ |
+| Multi-agent concurrency control | ✅ claims + write lock | ✅ claims + concurrent writers | not documented | ❌ |
+| Dependencies | none (stdlib + SQLite) | bundles Dolt (Go) | bundles embedding model | n/a |
+| Self-hosted | ✅ | ✅ | ✅ (cloud optional) | ✅ |
+| License | AGPL-3.0 (+ commercial) | MIT | proprietary | n/a |
+
+[^beads]: Beads — <https://github.com/steveyegge/beads> (MIT, Go; stores issues in Dolt, a
+    version-controlled SQL database; earlier versions used SQLite + JSONL).
+[^cb]: Central Brain by NeuroAIgent — <https://neuroaigent.ai> (local-first AI memory, Windows +
+    Apple-silicon macOS, MCP integration; pricing per the site at time of writing: $12/mo solo,
+    $35/mo for 4 licenses).
+
 ## Features
 
 | Area | What you get |
@@ -44,7 +94,14 @@ so your AIs can hand work to each other instead of living in separate chat silos
 
 ## Quickstart (Docker)
 
-Prebuilt image (published on every release):
+Try it in **one command** — no clone, no setup. Runs a throwaway demo (temporary database + example
+knowledge, deleted on exit) as an MCP stdio server:
+
+```bash
+docker run --rm -i ghcr.io/memokar/brainy:latest --demo
+```
+
+For a real install, run the server (prebuilt image, published on every release):
 
 ```bash
 docker run -d --name brainy -p 127.0.0.1:8765:8765 -v brainy-data:/data ghcr.io/memokar/brainy:latest
