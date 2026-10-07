@@ -71,6 +71,22 @@ released together on a barrier):
 - **Independent writes:** 20 agents writing *different* files all succeed — the lock serializes
   commits without false conflicts or deadlock.
 
+## Resource claims
+
+Beyond tasks, agents can reserve **arbitrary resources** — a free-form string key per space (e.g.
+`repo:app/src/auth/**`, `deploy:staging`) — so two agents don't touch the same files/area at once.
+
+- Table `resource_claims` holds exactly one row per `(space_id, resource_key)` (UNIQUE). A claim is
+  free again when `released_at IS NOT NULL` **or** `lease_until` is in the past.
+- Atomic claim: `INSERT OR IGNORE` the row, else `UPDATE … WHERE released_at IS NOT NULL OR
+  lease_until < now`; success needs exactly one changed row — same single-winner guarantee as task
+  claims (`tests/test_resources.py`: 20 parallel claimers → 1 winner, 19 conflicts).
+- `renew_resource` / `release_resource` require the current holder's `claim_token` (else
+  `StaleToken`); an expired lease can be taken over by anyone.
+- Permissions **reuse** the task capability/scopes: `can_claim_tasks` (`brainy:tasks:write`) to
+  claim/renew/release, `can_read` (`brainy:tasks:read`) to list. No new capability.
+- Read-only list in the web admin at `/admin/resources`.
+
 ## Backup & restore
 
 `scripts/backup.py` uses SQLite's online backup API (with integrity check) and `git bundle` for

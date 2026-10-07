@@ -16,7 +16,7 @@ import time
 import urllib.parse
 
 from . import acl, agents, audit, auth, capabilities as cap, config, dispatcher, knowledge
-from . import models as m, oauth, settings, spaces, tasks
+from . import models as m, oauth, resources, settings, spaces, tasks
 from . import tokens as toks
 from .errors import (AuthFailed, BrainyError, Conflict, InvalidState, NotFound,
                      PermissionDenied, SecretDetected)
@@ -135,6 +135,7 @@ label.f{display:flex;flex-direction:column;font-size:12px;color:var(--muted);gap
 _NAV = [("/admin/", "Dashboard"), ("/admin/tasks", "Tasks"),
         ("/admin/agents", "Agents"), ("/admin/jobs", "Jobs"),
         ("/admin/knowledge", "Knowledge"), ("/admin/spaces", "Spaces"),
+        ("/admin/resources", "Resources"),
         ("/admin/principals", "Principals"), ("/admin/tokens", "Tokens"),
         ("/admin/audit", "Audit")]
 
@@ -473,6 +474,8 @@ class BrainyWeb:
             return _html(200, self._jobs(conn, ctx, q))
         if path == "/admin/spaces":
             return _html(200, self._spaces(conn, ctx))
+        if path == "/admin/resources":
+            return _html(200, self._resources(conn, ctx, q))
         if path == "/admin/principals":
             return _html(200, self._principals(conn, ctx))
         if path == "/admin/tokens":
@@ -941,6 +944,34 @@ class BrainyWeb:
                 '<th>Concurrency</th><th>Status</th><th>Last seen</th><th></th></tr>%s'
                 '</table></div>' % (trs or '<tr><td colspan=8 class=muted>none</td></tr>'))
         return _page("Agents", body, ctx)
+
+    def _resources(self, conn, ctx, q):
+        show_all = q.get("all") == "1"
+        rows = resources.list_resource_claims(conn, ctx, active_only=not show_all, limit=500)
+        trs = ""
+        for r in rows:
+            if r["active"]:
+                st = '<span class="badge ok">active</span>'
+            elif r["released_at"]:
+                st = '<span class="badge muted">released</span>'
+            else:
+                st = '<span class="badge warn">expired</span>'
+            trs += ('<tr><td class=muted>%s</td><td class=mono>%s</td><td>%s</td>'
+                    '<td class=muted>%s</td><td class=muted>%s</td><td>%s</td>'
+                    '<td class=muted>%s</td></tr>'
+                    % (_esc(r["space"]), _esc(r["resource_key"]), _esc(r["holder"] or "—"),
+                       _esc((r["claimed_at"] or "—")[:19]), _esc((r["lease_until"] or "—")[:19]),
+                       st, _esc((r["note"] or "")[:80])))
+        toggle = ('<a href="/admin/resources">active only</a>' if show_all
+                  else '<a href="/admin/resources?all=1">show all</a>')
+        body = ('<h1>Resource claims</h1><p class=muted>Temporary, exclusive reservations of '
+                'arbitrary resources (one free-form key per space). Same model as task claims: '
+                'atomic claim + lease; expired/released claims become free again. Read-only view '
+                '(%s).</p><div class="card"><table><tr><th>Space</th><th>Resource key</th>'
+                '<th>Holder</th><th>Claimed</th><th>Lease until</th><th>Status</th><th>Note</th>'
+                '</tr>%s</table></div>'
+                % (toggle, trs or '<tr><td colspan=7 class=muted>none</td></tr>'))
+        return _page("Resources", body, ctx)
 
     def _jobs(self, conn, ctx, q):
         jobs = dispatcher.list_jobs(conn, task_id=q.get("task") or None,

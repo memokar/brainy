@@ -7,11 +7,11 @@
     "url": "https://github.com/memokar/brainy",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/memokar/brainy:0.1.1",
+      "identifier": "ghcr.io/memokar/brainy:0.2.0",
       "transport": {
         "type": "streamable-http",
         "url": "http://localhost:8765/mcp",

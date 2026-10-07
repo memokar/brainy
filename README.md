@@ -89,6 +89,7 @@ own docs (links below); where something isn't documented, it says so rather than
 |---|---|
 | Knowledge | `list_documents`, `get_document`, `search_knowledge`, `write_document` (optimistic concurrency via Git commit), `append_document`, `propose_write` |
 | Tasks | `create_task`, `claim_task`, `renew_claim`, `complete_task`, `fail_task`, `release_task`, dependencies, priorities, review/approve/reject |
+| Resource claims | `claim_resource`, `renew_resource`, `release_resource`, `list_resource_claims` — reserve any resource (a free-form key per space, e.g. a file path or area) with an atomic lease, same model as task claims |
 | Access | Spaces (tenants/areas), roles `ADMIN` / `EDITOR` / `AGENT` / `READER`, per-space ACL, service tokens, OAuth 2.1 (for Claude/ChatGPT remote connectors) |
 | Operations | Web admin UI, audit log, agent registry + dispatcher framework, backup & verified restore scripts |
 
@@ -160,6 +161,31 @@ Brainy is listed in the [official MCP Registry](https://registry.modelcontextpro
 
 Give each AI its own principal (e.g. `claude`, `chatgpt`) with role `AGENT` and only the spaces it
 needs. Every action then shows up in the audit log under that name.
+
+## Example: two coding agents in one repo
+
+Two agents working the same repository can step on each other's files. With **resource claims**
+each one reserves the area it's about to touch — a free-form key per space — and the other backs
+off until it's released or the lease expires:
+
+```jsonc
+// Agent A, before editing the auth code:
+claim_resource   { "space": "shared", "resource_key": "repo:app/src/auth/**", "lease_seconds": 1800 }
+// -> { "claim_token": "…", "lease_until": "…" }   A now owns that area
+
+// Agent B, about to touch the same area:
+claim_resource   { "space": "shared", "resource_key": "repo:app/src/auth/**" }
+// -> Conflict: already claimed  → B picks a different area (e.g. "repo:app/src/api/**")
+
+renew_resource   { "space": "shared", "resource_key": "repo:app/src/auth/**", "claim_token": "…" }   // A keeps working
+release_resource { "space": "shared", "resource_key": "repo:app/src/auth/**", "claim_token": "…" }   // A done → free again
+list_resource_claims { "space": "shared" }   // who holds what right now
+```
+
+Same guarantee as task claims — exactly one holder at a time, expired leases free up automatically
+(see [`tests/test_resources.py`](tests/test_resources.py)). Resource claims reuse the task
+permissions/scopes (`can_claim_tasks` / `brainy:tasks:write`), so any agent that can claim tasks can
+claim resources.
 
 ## Configuration
 

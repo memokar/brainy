@@ -3,4 +3,4 @@
 Reine interne Service-/Repository-Schicht. KEINE Netzwerk-/MCP-/Web-Ebene hier.
 Siehe docs/architecture.md.
 """
-__version__ = "0.1.1"
+__version__ = "0.2.0"

@@ -14,7 +14,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import (__version__, acl, agents, audit, auth, capabilities as cap, config, db,
-               dispatcher, knowledge, oauth, proposals, tasks, telegram)
+               dispatcher, knowledge, oauth, proposals, resources, tasks, telegram)
 from .errors import (AuthFailed, BrainyError, ClaimConflict, Conflict, InvalidState,
                      NotFound, PermissionDenied, SecretDetected, StaleToken)
 from .paths import PathNotAllowed
@@ -267,6 +267,29 @@ def _t_resume_dispatcher(conn, ctx, p, root):
     return dispatcher.resume_dispatcher(conn, ctx)
 
 
+def _t_claim_resource(conn, ctx, p, root):
+    return resources.claim_resource(conn, ctx, _req(p, "space"), _req(p, "resource_key"),
+                                    lease_seconds=int(p.get("lease_seconds", 900)),
+                                    note=p.get("note"))
+
+
+def _t_renew_resource(conn, ctx, p, root):
+    return resources.renew_resource(conn, ctx, _req(p, "space"), _req(p, "resource_key"),
+                                    _req(p, "claim_token"),
+                                    lease_seconds=int(p.get("lease_seconds", 900)))
+
+
+def _t_release_resource(conn, ctx, p, root):
+    return resources.release_resource(conn, ctx, _req(p, "space"), _req(p, "resource_key"),
+                                      _req(p, "claim_token"))
+
+
+def _t_list_resource_claims(conn, ctx, p, root):
+    return {"claims": resources.list_resource_claims(
+        conn, ctx, space=p.get("space"),
+        active_only=bool(p.get("active_only", True)), limit=int(p.get("limit", 200)))}
+
+
 TOOLS = {
     "list_spaces": _t_list_spaces,
     "list_documents": _t_list_documents,
@@ -295,6 +318,10 @@ TOOLS = {
     "disable_agent": _t_disable_agent,
     "pause_dispatcher": _t_pause_dispatcher,
     "resume_dispatcher": _t_resume_dispatcher,
+    "claim_resource": _t_claim_resource,
+    "renew_resource": _t_renew_resource,
+    "release_resource": _t_release_resource,
+    "list_resource_claims": _t_list_resource_claims,
 }
 
 # Nur ADMIN: globale Dispatcher-/Agent-Controls (Sichtbarkeit + Durchsetzung).
@@ -313,6 +340,10 @@ _OAUTH_TOOL_SCOPE = {
     "create_task": "brainy:tasks:write", "claim_task": "brainy:tasks:write",
     "renew_claim": "brainy:tasks:write", "release_task": "brainy:tasks:write",
     "complete_task": "brainy:tasks:write", "fail_task": "brainy:tasks:write",
+    # Resource-Claims teilen sich die Koordinations-Scopes mit den Task-Claims.
+    "list_resource_claims": "brainy:tasks:read",
+    "claim_resource": "brainy:tasks:write", "renew_resource": "brainy:tasks:write",
+    "release_resource": "brainy:tasks:write",
 }
 
 
@@ -390,6 +421,18 @@ TOOL_SCHEMAS = {
     "fail_task": {"type": "object", "properties": {
         "task_id": _S_STR, "claim_token": _S_STR, "reason": _S_STR},
         "required": ["task_id", "claim_token"]},
+    "claim_resource": {"type": "object", "properties": {
+        "space": _S_STR, "resource_key": _S_STR, "lease_seconds": {"type": "integer"},
+        "note": _S_STR}, "required": ["space", "resource_key"]},
+    "renew_resource": {"type": "object", "properties": {
+        "space": _S_STR, "resource_key": _S_STR, "claim_token": _S_STR,
+        "lease_seconds": {"type": "integer"}},
+        "required": ["space", "resource_key", "claim_token"]},
+    "release_resource": {"type": "object", "properties": {
+        "space": _S_STR, "resource_key": _S_STR, "claim_token": _S_STR},
+        "required": ["space", "resource_key", "claim_token"]},
+    "list_resource_claims": {"type": "object", "properties": {
+        "space": _S_STR, "active_only": {"type": "boolean"}, "limit": {"type": "integer"}}},
 }
 
 _TOOL_DESC = {
@@ -426,6 +469,13 @@ _TOOL_DESC = {
     "disable_agent": "Disable an agent (ADMIN).",
     "pause_dispatcher": "Pause the dispatcher globally (ADMIN, kill switch).",
     "resume_dispatcher": "Resume the dispatcher globally (ADMIN).",
+    "claim_resource": "Reserve a resource (free-form key per space, e.g. a file path/area) "
+                      "atomically with a lease + claim_token. Exactly one holder at a time; "
+                      "expired/released claims become free again. Use it so two agents don't "
+                      "touch the same files/area at once.",
+    "renew_resource": "Extend your resource lease (current holder + claim_token only).",
+    "release_resource": "Release your own resource claim (claim_token).",
+    "list_resource_claims": "List resource claims in readable spaces (active_only default true).",
 }
 
 
@@ -433,7 +483,8 @@ _TOOL_DESC = {
 # Hilft Clients (z.B. ChatGPT) zu verstehen, welche Tools lesen vs. schreiben.
 _READ_TOOLS = {"list_spaces", "list_documents", "get_document", "search_knowledge",
                "list_tasks", "get_task", "list_runnable_tasks", "list_agents",
-               "get_agent_status", "list_execution_jobs", "get_execution_job"}
+               "get_agent_status", "list_execution_jobs", "get_execution_job",
+               "list_resource_claims"}
 _TOOL_ANNOT = {
     "create_task": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
     "claim_task": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
@@ -447,6 +498,9 @@ _TOOL_ANNOT = {
     "write_document": {"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False},
     "append_document": {"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False},
     "propose_write": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+    "claim_resource": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
+    "renew_resource": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
+    "release_resource": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True},
 }
 
 # Governance-Tools werden nur eingeblendet, wenn der Principal das Recht IRGENDWO hat.
